@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block titolo %}Potenziali clienti — HoReCa Leads{% endblock %}
+{% block intestazione %}Potenziali clienti{% endblock %}
+{% block sottotitolo %}{{ totale }} risultati{% if filtri.q or filtri.status or filtri.categoria or filtri.zona or filtri.contattabili %} con i filtri attivi{% endif %}{% endblock %}
+
+{% block azioni %}
+  <a class="btn" href="/leads/export.csv?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&ordina={{ filtri.ordina }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>
+    </svg>
+    Esporta CSV
+  </a>
+  <a href="/scrape" class="btn btn-primary">Nuova ricerca</a>
+{% endblock %}
+
+{% block contenuto %}
+<section class="card mb-4">
+  <div class="card-body">
+    <form method="get" action="/leads">
+      <div class="field-row">
+        <div class="field" style="flex: 2;">
+          <label for="q">Cerca</label>
+          <input type="search" id="q" name="q" value="{{ filtri.q }}"
+                 placeholder="Nome, indirizzo, email, telefono…">
+        </div>
+        <div class="field">
+          <label for="status">Fase pipeline</label>
+          <select id="status" name="status">
+            <option value="">Tutte le fasi</option>
+            {% for valore, etichetta in STATUS_LABELS.items() %}
+              <option value="{{ valore }}" {% if filtri.status == valore %}selected{% endif %}>{{ etichetta }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="categoria">Categoria</label>
+          <select id="categoria" name="categoria">
+            <option value="">Tutte</option>
+            <option value="hotel" {% if filtri.categoria == 'hotel' %}selected{% endif %}>Hotel</option>
+            <option value="ristorante" {% if filtri.categoria == 'ristorante' %}selected{% endif %}>Ristoranti</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="zona">Zona</label>
+          <select id="zona" name="zona">
+            <option value="">Tutte le zone</option>
+            {% for z in zone %}
+              <option value="{{ z }}" {% if filtri.zona == z %}selected{% endif %}>{{ z }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="ordina">Ordina per</label>
+          <select id="ordina" name="ordina">
+            <option value="recenti" {% if filtri.ordina == 'recenti' %}selected{% endif %}>Più recenti</option>
+            <option value="aggiornati" {% if filtri.ordina == 'aggiornati' %}selected{% endif %}>Aggiornati di recente</option>
+            <option value="nome" {% if filtri.ordina == 'nome' %}selected{% endif %}>Nome A-Z</option>
+            <option value="valutazione" {% if filtri.ordina == 'valutazione' %}selected{% endif %}>Valutazione</option>
+            <option value="prossima_azione" {% if filtri.ordina == 'prossima_azione' %}selected{% endif %}>Prossima azione</option>
+          </select>
+        </div>
+      </div>
+      <div class="row-between">
+        <label class="checkbox">
+          <input type="checkbox" name="contattabili" value="true" {% if filtri.contattabili %}checked{% endif %}>
+          Solo con email o telefono
+        </label>
+        <div class="row">
+          <a href="/leads" class="btn btn-ghost btn-sm">Azzera filtri</a>
+          <button type="submit" class="btn btn-primary btn-sm">Applica</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="card">
+  {% if leads %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Struttura</th>
+            <th>Zona</th>
+            <th>Contatti</th>
+            <th>Valutazione</th>
+            <th>Fase</th>
+            <th>Ultimo contatto</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lead in leads %}
+            <tr>
+              <td>
+                <a href="/leads/{{ lead.id }}" class="cell-name">{{ lead.nome }}</a>
+                <div class="subtle">
+                  <span class="badge badge-{{ lead.categoria }}">{{ lead.categoria }}</span>
+                  {% if lead.stelle %}<span class="nowrap">★ {{ lead.stelle }}</span>{% endif %}
+                  {% if lead.indirizzo %}· {{ lead.indirizzo | truncate(46) }}{% endif %}
+                </div>
+              </td>
+              <td class="cell-muted">{{ lead.zona or "—" }}</td>
+              <td class="cell-nowrap">
+                {% if lead.telefono %}<div><a href="tel:{{ lead.telefono }}">{{ lead.telefono }}</a></div>{% endif %}
+                {% if lead.email %}<div class="truncate" style="max-width: 190px;">
+                  <a href="mailto:{{ lead.email }}">{{ lead.email }}</a></div>{% endif %}
+                {% if not lead.telefono and not lead.email %}<span class="subtle">nessun contatto</span>{% endif %}
+              </td>
+              <td class="cell-muted cell-nowrap">
+                {% if lead.valutazione %}
+                  ★ {{ "%.1f"|format(lead.valutazione) }}
+                  <span class="subtle">({{ lead.numero_recensioni or 0 }})</span>
+                {% else %}—{% endif %}
+              </td>
+              <td><span class="badge badge-{{ lead.status }}">{{ lead.status_label }}</span></td>
+              <td class="cell-muted cell-nowrap">{{ lead.ultimo_contatto_at | da_quanto }}</td>
+              <td class="cell-nowrap">
+                <a href="/leads/{{ lead.id }}/scheda" class="btn btn-sm btn-ghost" title="Scheda note">Note</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if pagine_totali > 1 %}
+      <div class="card-header" style="border-bottom: none; border-top: 1px solid var(--surface-border);">
+        <span class="subtle">Pagina {{ pagina_num }} di {{ pagine_totali }}</span>
+        <div class="row">
+          {% if pagina_num > 1 %}
+            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else '' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num - 1 }}">← Precedente</a>
+          {% endif %}
+          {% if pagina_num < pagine_totali %}
+            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else '' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num + 1 }}">Successiva →</a>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon">🔍</div>
+      <h3>Nessun risultato</h3>
+      <p class="muted">Prova ad allargare i filtri o avvia una nuova ricerca.</p>
+      <a href="/scrape" class="btn btn-primary mt-4">Cerca nuove strutture</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

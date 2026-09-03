@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block titolo %}Dashboard — HoReCa Leads{% endblock %}
+{% block intestazione %}Dashboard{% endblock %}
+{% block sottotitolo %}
+  {{ m.totale_lead }} potenziali clienti · {{ m.nuovi_7g }} nuovi negli ultimi 7 giorni ·
+  {{ m.contatti_7g }} contatti fatti questa settimana
+{% endblock %}
+
+{% block azioni %}
+  <a href="/scrape" class="btn btn-primary">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    Nuova ricerca
+  </a>
+{% endblock %}
+
+{% block contenuto %}
+{% if m.totale_lead == 0 %}
+  <div class="card">
+    <div class="empty">
+      <div class="empty-icon">🏨</div>
+      <h3>Nessun potenziale cliente in archivio</h3>
+      <p class="muted">Avvia la prima ricerca: trova hotel e ristoranti per località<br>
+        e importali automaticamente, senza duplicati.</p>
+      <a href="/scrape" class="btn btn-primary mt-4">Avvia la prima ricerca</a>
+    </div>
+  </div>
+{% else %}
+
+  <!-- KPI principali -->
+  <div class="grid grid-kpi mb-4">
+    <div class="card kpi">
+      <div class="kpi-label">Potenziali clienti</div>
+      <div class="kpi-value">{{ m.totale_lead }}</div>
+      <div class="kpi-hint">{{ m.hotel }} hotel · {{ m.ristoranti }} ristoranti</div>
+    </div>
+    <div class="card kpi kpi-accent">
+      <div class="kpi-label">Contattabili</div>
+      <div class="kpi-value">{{ m.contattabili }}</div>
+      <div class="kpi-hint">{{ "%.0f"|format(m.tasso_contattabilita) }}% dell'archivio ·
+        {{ m.con_email }} con email, {{ m.con_telefono }} con telefono</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">Tasso di risposta</div>
+      <div class="kpi-value">{{ "%.0f"|format(m.tasso_risposta) }}%</div>
+      <div class="kpi-hint">{{ m.risposte }} risposte su {{ m.contattati }} contattati</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-label">In trattativa</div>
+      <div class="kpi-value">{{ m.in_trattativa }}</div>
+      <div class="kpi-hint">{{ m.incontri }} incontri raggiunti</div>
+    </div>
+    <div class="card kpi kpi-success">
+      <div class="kpi-label">Chiusi vinti</div>
+      <div class="kpi-value">{{ m.vinti }}</div>
+      <div class="kpi-hint">
+        {{ "%.1f"|format(m.conversione_totale) }}% di conversione totale
+        {% if m.valore_vinto %} · {{ m.valore_vinto | euro }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-main">
+    <div class="stack">
+      <!-- Funnel commerciale -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Funnel commerciale</h2>
+          <span class="subtle">quanti arrivano a ogni fase</span>
+        </div>
+        <div class="card-body">
+          <div class="funnel">
+            {% for fase in m.funnel %}
+              <div class="funnel-step">
+                <div class="funnel-label">{{ fase.etichetta }}</div>
+                <div class="funnel-track">
+                  <div class="funnel-bar" style="width: {{ '%.1f'|format(fase.percentuale if fase.percentuale > 0 else 0) }}%"></div>
+                </div>
+                <div class="funnel-value">
+                  {{ fase.conteggio }} <span>{{ "%.0f"|format(fase.percentuale) }}%</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          {% if m.persi %}
+            <p class="subtle mt-4" style="margin-bottom:0;">
+              {{ m.persi }} chiusi persi · tasso di chiusura sui negoziati conclusi:
+              {{ "%.0f"|format(m.tasso_chiusura) }}%
+            </p>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- Efficacia canali -->
+      {% if m.canali %}
+      <section class="card">
+        <div class="card-header">
+          <h2>Efficacia per canale</h2>
+          <span class="subtle">dove conviene insistere</span>
+        </div>
+        <div class="card-body">
+          <div class="bars">
+            {% for c in m.canali %}
+              <div>
+                <div class="bar-label">
+                  <span>{{ c.etichetta }}</span>
+                  <span class="muted">{{ c.risposte }}/{{ c.tentativi }} · {{ "%.0f"|format(c.tasso_risposta) }}%</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill success" style="width: {{ '%.1f'|format(c.tasso_risposta) }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Ultimi contatti -->
+      <section class="card">
+        <div class="card-header"><h2>Ultimi contatti</h2></div>
+        <div class="card-body">
+          {% if ultime_interazioni %}
+            <div class="timeline">
+              {% for i in ultime_interazioni %}
+                <div class="timeline-item">
+                  <div class="timeline-dot">{{ "✓" if i.ha_risposto else "→" }}</div>
+                  <div class="timeline-body">
+                    <div>
+                      <a href="/leads/{{ i.lead_id }}"><strong>{{ i.lead.nome }}</strong></a>
+                      <span class="muted">— {{ i.canale_label }}</span>
+                    </div>
+                    <div class="timeline-meta">
+                      <span>{{ i.esito_label }}</span>·
+                      <span>{{ i.occurred_at | da_quanto }}</span>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="muted" style="margin:0;">Nessun contatto registrato. Apri la scheda di un
+              potenziale cliente e registra la prima chiamata o email.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <div class="stack">
+      <!-- Da ricontattare -->
+      <section class="card">
+        <div class="card-header"><h2>Da ricontattare</h2></div>
+        <div class="card-body tight">
+          {% if m.da_ricontattare %}
+            {% for lead in m.da_ricontattare %}
+              <a href="/leads/{{ lead.id }}" class="row-between"
+                 style="padding: 10px 12px; border-radius: 10px; color: inherit;">
+                <span class="truncate">
+                  <strong>{{ lead.nome }}</strong><br>
+                  <span class="subtle">{{ lead.prossima_azione_at | da_quanto }}</span>
+                </span>
+                <span class="badge badge-{{ lead.status }}">{{ lead.status_label }}</span>
+              </a>
+            {% endfor %}
+          {% else %}
+            <p class="muted" style="padding: 12px; margin: 0;">
+              Nessuna azione pianificata. Imposta una data di richiamo dalla scheda cliente.
+            </p>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- Copertura per zona -->
+      {% if m.per_zona %}
+      <section class="card">
+        <div class="card-header"><h2>Copertura per zona</h2></div>
+        <div class="card-body">
+          <div class="bars">
+            {% set massimo = m.per_zona[0][1] %}
+            {% for zona, n in m.per_zona %}
+              <div>
+                <div class="bar-label">
+                  <a href="/leads?zona={{ zona | urlencode }}" class="truncate">{{ zona }}</a>
+                  <span class="muted">{{ n }}</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width: {{ '%.1f'|format(n / massimo * 100) }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
+      <!-- Ultime ricerche -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Ultime ricerche</h2>
+          <a href="/scrape" class="subtle">Tutte →</a>
+        </div>
+        <div class="card-body tight">
+          {% if ultimi_job %}
+            {% for job in ultimi_job %}
+              <div class="row-between" style="padding: 10px 12px;">
+                <span class="truncate">
+                  <strong class="truncate">{{ job.localita }}</strong><br>
+                  <span class="subtle">
+                    {{ job.nuovi }} nuovi · {{ job.duplicati }} già presenti ·
+                    {{ job.created_at | da_quanto }}
+                  </span>
+                </span>
+                <span class="badge">{{ job.stato_label }}</span>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="muted" style="padding: 12px; margin: 0;">Nessuna ricerca eseguita.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

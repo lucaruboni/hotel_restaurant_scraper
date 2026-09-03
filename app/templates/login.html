@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Accedi — HoReCa Leads</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("horeca-theme");
+        if (t) document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      <span class="brand-mark">H</span>
+      <div>
+        <div style="font-weight: 700; letter-spacing: -0.02em;">HoReCa Leads</div>
+        <div class="subtle">Area riservata</div>
+      </div>
+    </div>
+
+    {% if errore %}
+      <div class="alert alert-errore">{{ errore }}</div>
+    {% endif %}
+    {% if flash %}
+      <div class="alert alert-info">{{ flash }}</div>
+    {% endif %}
+
+    <form method="post" action="/login">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autocomplete="username"
+               autofocus placeholder="tu@esempio.it">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required
+               autocomplete="current-password" placeholder="••••••••••">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%;">Accedi</button>
+    </form>
+
+    <p class="subtle mt-6" style="text-align: center; margin-bottom: 0;">
+      Nessun account? Crealo dal terminale:<br>
+      <code class="mono">python -m app.cli create-user --email ...</code>
+    </p>
+  </div>
+</div>
+</body>
+</html>
