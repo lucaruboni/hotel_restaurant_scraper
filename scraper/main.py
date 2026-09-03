@@ -10,11 +10,11 @@ import logging
 import sys
 import time
 
-from .google_places import GooglePlacesClient
 from .site_enrichment import enrich_from_website
 from .exporter import export_csv, export_json
+from . import ui
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +34,13 @@ def parse_args():
         help="Categorie da cercare separate da virgola: hotel,ristorante (default: entrambe)",
     )
     parser.add_argument(
+        "--source",
+        choices=["osm", "google"],
+        default="osm",
+        help="Sorgente dati: 'osm' (OpenStreetMap, gratis, nessuna chiave) o "
+        "'google' (Google Places, richiede GOOGLE_PLACES_API_KEY). Default: osm",
+    )
+    parser.add_argument(
         "--max-results",
         type=int,
         default=40,
@@ -42,7 +49,7 @@ def parse_args():
     parser.add_argument(
         "--reviews",
         action="store_true",
-        help="Recupera anche le recensioni (richiede una chiamata Place Details per luogo)",
+        help="Recupera anche le recensioni (solo sorgente 'google', chiamata extra per luogo)",
     )
     parser.add_argument(
         "--max-reviews",
@@ -71,7 +78,116 @@ def parse_args():
         default=0.2,
         help="Pausa in secondi tra le richieste (rispetto rate limit / cortesia verso i siti)",
     )
+    parser.add_argument(
+        "--no-ui",
+        action="store_true",
+        help="Disattiva l'interfaccia grafica da terminale (output semplice, utile per log/CI)",
+    )
     return parser.parse_args()
+
+
+def run_osm(args, categories):
+    from .osm_places import OSMPlacesClient
+
+    client = OSMPlacesClient()
+    area = client.geocode_area(args.location)
+    if not area:
+        ui.print_error(
+            f"Zona '{args.location}' non trovata su OpenStreetMap. "
+            "Prova con un nome più preciso, es. 'Provincia di Lucca' o 'Toscana'."
+        )
+        sys.exit(1)
+
+    all_results = []
+    progress = ui.make_progress()
+    with progress:
+        for category in categories:
+            places = list(client.search_places(area["area_id"], category, max_results=args.max_results))
+            task = progress.add_task(f"[cyan]Ricerca {category} in {area['display_name'][:40]}", total=len(places))
+
+            for element in places:
+                result = client.parse_place(element, category=category, location=args.location)
+
+                if not args.no_website_enrichment and result.website:
+                    try:
+                        enrichment = enrich_from_website(result.website, is_hotel=(category == "hotel"))
+                        if not result.email:
+                            result.email = enrichment["email"]
+                        if not result.instagram:
+                            result.instagram = enrichment["instagram"]
+                        if not result.facebook:
+                            result.facebook = enrichment["facebook"]
+                        if not result.linkedin:
+                            result.linkedin = enrichment["linkedin"]
+                        if enrichment["stars"] and not result.stars:
+                            result.stars = enrichment["stars"]
+                    except Exception as exc:
+                        logger.debug("Errore arricchimento sito %s: %s", result.website, exc)
+
+                all_results.append(result)
+                progress.advance(task)
+                if not args.no_ui:
+                    ui.print_place_found(
+                        result.name,
+                        category,
+                        has_email=bool(result.email),
+                        has_social=bool(result.instagram or result.facebook or result.linkedin),
+                    )
+                time.sleep(args.sleep)
+
+    return all_results
+
+
+def run_google(args, categories):
+    from .google_places import GooglePlacesClient
+
+    try:
+        client = GooglePlacesClient()
+    except ValueError as exc:
+        ui.print_error(str(exc))
+        sys.exit(1)
+
+    all_results = []
+    progress = ui.make_progress()
+    with progress:
+        for category in categories:
+            task = progress.add_task(f"[cyan]Ricerca {category} in {args.location}", total=args.max_results)
+            for place in client.search_places(location=args.location, category=category, max_results=args.max_results):
+                result = client.parse_place(place, category=category, location=args.location)
+                place_id = place.get("id")
+
+                if args.reviews and place_id:
+                    try:
+                        details = client.get_details(place_id)
+                        result.reviews = client.parse_reviews(details, max_reviews=args.max_reviews)
+                    except Exception as exc:
+                        ui.print_warning(f"Recensioni non disponibili per {result.name}: {exc}")
+                    time.sleep(args.sleep)
+
+                if not args.no_website_enrichment and result.website:
+                    try:
+                        enrichment = enrich_from_website(result.website, is_hotel=(category == "hotel"))
+                        result.email = enrichment["email"]
+                        result.instagram = enrichment["instagram"]
+                        result.facebook = enrichment["facebook"]
+                        result.linkedin = enrichment["linkedin"]
+                        if enrichment["stars"]:
+                            result.stars = enrichment["stars"]
+                    except Exception as exc:
+                        logger.debug("Errore arricchimento sito %s: %s", result.website, exc)
+
+                all_results.append(result)
+                progress.advance(task)
+                if not args.no_ui:
+                    ui.print_place_found(
+                        result.name,
+                        category,
+                        has_email=bool(result.email),
+                        has_social=bool(result.instagram or result.facebook or result.linkedin),
+                    )
+                time.sleep(args.sleep)
+
+    return all_results
 
 
 def run(args):
@@ -79,59 +195,27 @@ def run(args):
     valid_categories = {"hotel", "ristorante"}
     for c in categories:
         if c not in valid_categories:
-            logger.error("Categoria non valida: %s (valide: hotel, ristorante)", c)
+            ui.print_error(f"Categoria non valida: {c} (valide: hotel, ristorante)")
             sys.exit(1)
 
-    try:
-        client = GooglePlacesClient()
-    except ValueError as exc:
-        logger.error(str(exc))
-        sys.exit(1)
+    if not args.no_ui:
+        ui.print_banner(args.location, categories, args.source, args.max_results)
 
-    all_results = []
-
-    for category in categories:
-        logger.info("Ricerca '%s' in '%s'...", category, args.location)
-        count = 0
-        for place in client.search_places(
-            location=args.location,
-            category=category,
-            max_results=args.max_results,
-        ):
-            result = client.parse_place(place, category=category, location=args.location)
-            place_id = place.get("id")
-
-            if args.reviews and place_id:
-                try:
-                    details = client.get_details(place_id)
-                    result.reviews = client.parse_reviews(details, max_reviews=args.max_reviews)
-                except Exception as exc:
-                    logger.warning("Impossibile recuperare recensioni per %s: %s", result.name, exc)
-                time.sleep(args.sleep)
-
-            if not args.no_website_enrichment and result.website:
-                try:
-                    enrichment = enrich_from_website(result.website, is_hotel=(category == "hotel"))
-                    result.email = enrichment["email"]
-                    result.instagram = enrichment["instagram"]
-                    result.facebook = enrichment["facebook"]
-                    result.linkedin = enrichment["linkedin"]
-                    if enrichment["stars"]:
-                        result.stars = enrichment["stars"]
-                except Exception as exc:
-                    logger.warning("Impossibile analizzare il sito %s: %s", result.website, exc)
-
-            all_results.append(result)
-            count += 1
-            logger.info("  [%d] %s", count, result.name)
-            time.sleep(args.sleep)
+    start = time.time()
+    if args.source == "google":
+        all_results = run_google(args, categories)
+    else:
+        all_results = run_osm(args, categories)
+    elapsed = time.time() - start
 
     export_csv(all_results, args.output, max_reviews=args.max_reviews)
-    logger.info("Esportati %d risultati in %s", len(all_results), args.output)
-
     if args.json:
         export_json(all_results, args.json)
-        logger.info("Esportati anche in JSON: %s", args.json)
+
+    if not args.no_ui:
+        ui.print_summary(all_results, args.output, elapsed)
+    else:
+        print(f"Esportati {len(all_results)} risultati in {args.output}")
 
 
 def main():

@@ -1,0 +1,10 @@
+services:
+  scraper:
+    build: .
+    image: hotel-restaurant-scraper:latest
+    env_file:
+      - .env
+    volumes:
+      - ./output:/app/output
+    tty: true
+    stdin_open: true
