@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block titolo %}Ricerca strutture — HoReCa Leads{% endblock %}
+{% block intestazione %}Ricerca strutture{% endblock %}
+{% block sottotitolo %}Trova hotel e ristoranti per località: i risultati entrano in archivio già deduplicati{% endblock %}
+
+{% block contenuto %}
+<div class="grid grid-main">
+  <div class="stack">
+    <section class="card">
+      <div class="card-header"><h2>Nuova ricerca</h2></div>
+      <div class="card-body">
+        <form method="post" action="/scrape">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+          <div class="field">
+            <label for="localita">Località</label>
+            <input type="text" id="localita" name="localita" required
+                   placeholder="Riccione, Misano Adriatico, Cattolica">
+            <span class="hint">Comuni, province o regioni. Più zone insieme separate da virgola.</span>
+          </div>
+
+          <div class="field">
+            <label>Categorie</label>
+            <div class="row">
+              <label class="checkbox">
+                <input type="checkbox" name="categorie" value="hotel" checked> Hotel
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" name="categorie" value="ristorante" checked> Ristoranti
+              </label>
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="sorgente">Sorgente dati</label>
+              <select id="sorgente" name="sorgente">
+                <option value="osm">OpenStreetMap — gratis, nessuna chiave</option>
+                <option value="google" {% if not google_disponibile %}disabled{% endif %}>
+                  Google Places — più completo{% if not google_disponibile %} (chiave non configurata){% endif %}
+                </option>
+              </select>
+              {% if not google_disponibile %}
+                <span class="hint">Per usare Google imposta GOOGLE_PLACES_API_KEY nel file .env</span>
+              {% endif %}
+            </div>
+            <div class="field">
+              <label for="max_results">Max risultati per categoria</label>
+              <input type="number" id="max_results" name="max_results" value="40"
+                     min="1" max="{{ max_results_cap }}">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" name="arricchimento" value="true" checked>
+              Visita i siti web per estrarre email e social
+            </label>
+            <span class="hint">Più lento, ma è ciò che rende i lead davvero contattabili.</span>
+          </div>
+
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" name="recensioni" value="true">
+              Scarica anche le recensioni (solo con sorgente Google)
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Avvia ricerca</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2>Ricerche eseguite</h2>
+        <span class="subtle">i duplicati non vengono reimportati</span>
+      </div>
+      <div id="jobs-live">
+        {% include "_jobs_table.html" %}
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-header"><h2>Come funziona</h2></div>
+      <div class="card-body" style="font-size: 13.5px;">
+        <p><strong>1. Ricerca.</strong> Lo scraper cerca hotel e ristoranti nelle località indicate
+          e ne raccoglie nome, indirizzo, telefono, sito, valutazioni.</p>
+        <p><strong>2. Arricchimento.</strong> Per ogni struttura con un sito web, visita la homepage
+          e la pagina contatti per trovare email e profili social.</p>
+        <p><strong>3. Deduplica.</strong> Prima di salvare, ogni struttura viene confrontata con
+          l'archivio per dominio del sito, telefono e nome+indirizzo. Le già presenti non vengono
+          duplicate: i loro campi vuoti vengono completati con i nuovi dati.</p>
+        <p style="margin-bottom:0;"><strong>4. CSV.</strong> Ogni ricerca produce un CSV con i soli
+          lead nuovi, scaricabile dalla tabella qui a fianco.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2>Consiglio commerciale</h2></div>
+      <div class="card-body" style="font-size: 13.5px;">
+        <p>Lavora una zona per volta e chiudila prima di aprirne un'altra: le strutture della stessa
+          località si parlano fra loro, e citare un cliente vicino è la leva più forte che hai.</p>
+        <p style="margin-bottom:0;">Filtra per <em>solo contattabili</em> nell'elenco: partire dalle
+          strutture con email e telefono già trovati fa risparmiare ore.</p>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

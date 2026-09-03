@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titolo %}Errore {{ codice }} — HoReCa Leads{% endblock %}
+{% block intestazione %}Errore {{ codice }}{% endblock %}
+
+{% block contenuto %}
+<section class="card">
+  <div class="empty">
+    <div class="empty-icon">
+      {% if codice == 404 %}🔎{% elif codice == 403 %}🔒{% else %}⚠️{% endif %}
+    </div>
+    <h3>
+      {% if codice == 404 %}Pagina non trovata
+      {% elif codice == 403 %}Accesso negato
+      {% elif codice == 413 %}File troppo grande
+      {% else %}Qualcosa non ha funzionato{% endif %}
+    </h3>
+    <p class="muted">{{ messaggio }}</p>
+    <a href="/" class="btn btn-primary mt-4">Torna alla dashboard</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block titolo %}Scheda — {{ lead.nome }}{% endblock %}
+{% block intestazione %}Scheda di {{ lead.nome }}{% endblock %}
+{% block sottotitolo %}
+  Tutto quello che serve sapere prima di richiamare ·
+  {{ note | length }} note · {{ allegati | length }} allegati
+{% endblock %}
+
+{% block azioni %}
+  <a href="/leads/{{ lead.id }}" class="btn btn-ghost">← Torna alla scheda cliente</a>
+{% endblock %}
+
+{% block contenuto %}
+<div class="grid grid-main">
+  <div class="stack">
+    <!-- Nuova nota -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Nuova nota</h2>
+        <span class="subtle">⌘/Ctrl + Invio per salvare</span>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/leads/{{ lead.id }}/note" data-quick-submit>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field">
+            <label for="titolo">Titolo</label>
+            <input type="text" id="titolo" name="titolo"
+                   placeholder="es. Chiamata del 12/03 con il direttore">
+          </div>
+          <div class="field">
+            <label for="corpo">Contenuto</label>
+            <textarea id="corpo" name="corpo" data-autosize
+              placeholder="Chi ho sentito e con che ruolo. Cosa gli interessa. Obiezioni sollevate. Prezzi discussi. Cosa ho promesso e per quando. Come si è chiusa la conversazione."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Crea nota</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Note esistenti -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Note del cliente</h2>
+        <span class="subtle">{{ note | length }} totali</span>
+      </div>
+      <div class="card-body">
+        {% if note %}
+          <div class="note-grid">
+            {% for nota in note %}
+              <a href="/leads/{{ lead.id }}/note/{{ nota.id }}" class="note-card">
+                <h3>{{ "📌 " if nota.in_evidenza }}{{ nota.titolo }}</h3>
+                <div class="note-excerpt">{{ nota.corpo or "Nota vuota" }}</div>
+                <div class="note-meta">
+                  <span>{{ nota.updated_at | da_quanto }}</span>
+                  {% if nota.allegati %}<span>· {{ nota.allegati | length }} allegati</span>{% endif %}
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty" style="padding: 32px 16px;">
+            <div class="empty-icon">📝</div>
+            <h3>Nessuna nota</h3>
+            <p class="muted">Le note tengono coerente la conversazione commerciale:<br>
+              chi hai sentito, cosa gli hai promesso, quando ricontattarlo.</p>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Galleria allegati -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Foto, screenshot e file</h2>
+        <span class="subtle">{{ allegati | length }} elementi</span>
+      </div>
+      <div class="card-body">
+        {% if allegati %}
+          <div class="gallery">
+            {% for a in allegati %}
+              <div class="gallery-item">
+                <a href="/leads/{{ lead.id }}/allegati/{{ a.id }}" target="_blank" rel="noopener">
+                  {% if a.is_immagine %}
+                    <img src="/leads/{{ lead.id }}/allegati/{{ a.id }}" alt="{{ a.descrizione or a.nome_originale }}" loading="lazy">
+                  {% else %}
+                    <div class="gallery-file">📄</div>
+                  {% endif %}
+                </a>
+                <div class="gallery-meta">
+                  <div class="gallery-name" title="{{ a.nome_originale }}">{{ a.nome_originale }}</div>
+                  <div class="gallery-size">{{ a.dimensione_leggibile }} · {{ a.created_at | da_quanto }}</div>
+                  {% if a.descrizione %}<div class="muted">{{ a.descrizione }}</div>{% endif %}
+                </div>
+                <div class="gallery-actions">
+                  <form method="post" action="/leads/{{ lead.id }}/allegati/{{ a.id }}/elimina"
+                        data-conferma="Eliminare definitivamente «{{ a.nome_originale }}»?" style="width:100%;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-danger" style="width:100%;">Elimina</button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="muted" style="margin:0;">Nessun allegato. Carica screenshot di conversazioni,
+            foto della struttura, preventivi o documenti.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <!-- Upload -->
+    <section class="card">
+      <div class="card-header"><h2>Carica un file</h2></div>
+      <div class="card-body">
+        <form method="post" action="/leads/{{ lead.id }}/allegati" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field">
+            <label for="file">File</label>
+            <input type="file" id="file" name="file" required
+                   accept="image/*,application/pdf,.txt,.csv,.docx,.xlsx">
+            <span class="hint">Immagini, PDF, testo, CSV, Word, Excel — max 15 MB</span>
+          </div>
+          <div class="field">
+            <label for="descrizione">Descrizione</label>
+            <input type="text" id="descrizione" name="descrizione"
+                   placeholder="es. Screenshot chat WhatsApp del 12/03">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Carica</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Riepilogo cliente sempre visibile -->
+    <section class="card">
+      <div class="card-header"><h2>Promemoria cliente</h2></div>
+      <div class="card-body stack" style="gap: 10px; font-size: 13px;">
+        <div class="row-between">
+          <span class="muted">Fase</span>
+          <span class="badge badge-{{ lead.status }}">{{ lead.status_label }}</span>
+        </div>
+        <div class="row-between"><span class="muted">Telefono</span>
+          <strong>{% if lead.telefono %}<a href="tel:{{ lead.telefono }}">{{ lead.telefono }}</a>{% else %}—{% endif %}</strong></div>
+        <div class="row-between"><span class="muted">Email</span>
+          <strong class="truncate" style="max-width:160px;">
+            {% if lead.email %}<a href="mailto:{{ lead.email }}">{{ lead.email }}</a>{% else %}—{% endif %}</strong></div>
+        <div class="row-between"><span class="muted">Ultimo contatto</span>
+          <strong>{{ lead.ultimo_contatto_at | da_quanto }}</strong></div>
+        <div class="row-between"><span class="muted">Contatti registrati</span>
+          <strong>{{ lead.interazioni | length }}</strong></div>
+        {% if lead.prossima_azione_at %}
+          <div class="alert alert-info" style="margin: 4px 0 0;">
+            Prossima azione {{ lead.prossima_azione_at | da_quanto }}
+            ({{ lead.prossima_azione_at | data }})
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
+    {% if lead.interazioni %}
+    <section class="card">
+      <div class="card-header"><h2>Ultimi contatti</h2></div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for i in lead.interazioni[:5] %}
+            <div class="timeline-item">
+              <div class="timeline-dot">{{ "✓" if i.ha_risposto else "→" }}</div>
+              <div class="timeline-body">
+                <div><strong>{{ i.canale_label }}</strong></div>
+                <div class="timeline-meta">{{ i.esito_label }} · {{ i.occurred_at | da_quanto }}</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block titolo %}{{ lead.nome }} — HoReCa Leads{% endblock %}
+{% block intestazione %}{{ lead.nome }}{% endblock %}
+{% block sottotitolo %}
+  <span class="badge badge-{{ lead.categoria }}">{{ lead.categoria }}</span>
+  {% if lead.stelle %}· ★ {{ lead.stelle }}{% endif %}
+  {% if lead.indirizzo %}· {{ lead.indirizzo }}{% endif %}
+{% endblock %}
+
+{% block azioni %}
+  <a href="/leads/{{ lead.id }}/scheda" class="btn btn-primary">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+    </svg>
+    Scheda note
+  </a>
+  <a href="/leads" class="btn btn-ghost">← Elenco</a>
+{% endblock %}
+
+{% block contenuto %}
+<!-- Pipeline -->
+<section class="card mb-4">
+  <div class="card-header">
+    <h2>Fase della trattativa</h2>
+    <span class="subtle">clicca per aggiornare</span>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/leads/{{ lead.id }}/status">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="stepper">
+        {% for stato in stati %}
+          <button type="submit" name="status" value="{{ stato.value }}"
+                  class="step-btn {% if lead.status == stato.value %}attivo{% endif %}">
+            {{ stato.etichetta }}
+          </button>
+        {% endfor %}
+      </div>
+    </form>
+    <div class="row mt-4 subtle">
+      <span>Primo contatto: <strong>{{ lead.primo_contatto_at | data }}</strong></span>
+      <span>Ultimo contatto: <strong>{{ lead.ultimo_contatto_at | data }}</strong></span>
+      <span>Risposta: <strong>{{ lead.risposta_at | data }}</strong></span>
+      {% if lead.prossima_azione_at %}
+        <span>Prossima azione: <strong>{{ lead.prossima_azione_at | data }}</strong>
+          ({{ lead.prossima_azione_at | da_quanto }})</span>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<div class="grid grid-main">
+  <div class="stack">
+    <!-- Registra contatto -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Registra un contatto</h2>
+        <span class="subtle">quando, come, con quale esito</span>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/leads/{{ lead.id }}/interazioni">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field-row">
+            <div class="field">
+              <label for="canale">Canale</label>
+              <select id="canale" name="canale" required>
+                {% for c in canali %}<option value="{{ c.value }}">{{ c.etichetta }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="esito">Esito</label>
+              <select id="esito" name="esito" required>
+                {% for e in esiti %}<option value="{{ e.value }}">{{ e.etichetta }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="quando">Quando</label>
+              <input type="datetime-local" id="quando" name="quando">
+              <span class="hint">Vuoto = adesso</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="testo">Cosa è successo</label>
+            <textarea id="testo" name="testo" data-autosize
+              placeholder="Con chi ho parlato, cosa ha detto, obiezioni, cosa ho promesso, quando richiamare…"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Registra contatto</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Storico -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Storico contatti</h2>
+        <span class="subtle">{{ lead.interazioni | length }} registrati</span>
+      </div>
+      <div class="card-body">
+        {% if lead.interazioni %}
+          <div class="timeline">
+            {% for i in lead.interazioni %}
+              <div class="timeline-item">
+                <div class="timeline-dot">{{ "✓" if i.ha_risposto else "→" }}</div>
+                <div class="timeline-body">
+                  <div><strong>{{ i.canale_label }}</strong> — {{ i.esito_label }}</div>
+                  <div class="timeline-meta">
+                    <span>{{ i.occurred_at | data }}</span>·<span>{{ i.occurred_at | da_quanto }}</span>
+                  </div>
+                  {% if i.testo %}<div class="timeline-text">{{ i.testo }}</div>{% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="muted" style="margin:0;">Nessun contatto ancora registrato con questa struttura.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Note recenti -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Note</h2>
+        <a href="/leads/{{ lead.id }}/scheda" class="btn btn-sm">Apri scheda completa →</a>
+      </div>
+      <div class="card-body">
+        {% if lead.note %}
+          <div class="note-grid">
+            {% for nota in lead.note[:4] %}
+              <a href="/leads/{{ lead.id }}/note/{{ nota.id }}" class="note-card">
+                <h3>{{ "📌 " if nota.in_evidenza }}{{ nota.titolo }}</h3>
+                <div class="note-excerpt">{{ nota.corpo or "Nota vuota" }}</div>
+                <div class="note-meta">{{ nota.updated_at | da_quanto }}</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="muted" style="margin:0;">Nessuna nota. Aprila dalla scheda per annotare
+            il contesto commerciale di questo cliente.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <!-- Contatti -->
+    <section class="card">
+      <div class="card-header"><h2>Contatti e dati</h2></div>
+      <div class="card-body">
+        <form method="post" action="/leads/{{ lead.id }}/dettagli">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field">
+            <label for="telefono">Telefono</label>
+            <input type="text" id="telefono" name="telefono" value="{{ lead.telefono }}">
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="text" id="email" name="email" value="{{ lead.email }}">
+          </div>
+          <div class="field">
+            <label for="sito_web">Sito web</label>
+            <input type="text" id="sito_web" name="sito_web" value="{{ lead.sito_web }}">
+          </div>
+          <div class="field">
+            <label for="instagram">Instagram</label>
+            <input type="text" id="instagram" name="instagram" value="{{ lead.instagram }}">
+          </div>
+          <div class="field">
+            <label for="facebook">Facebook</label>
+            <input type="text" id="facebook" name="facebook" value="{{ lead.facebook }}">
+          </div>
+          <div class="field">
+            <label for="linkedin">LinkedIn</label>
+            <input type="text" id="linkedin" name="linkedin" value="{{ lead.linkedin }}">
+          </div>
+          <div class="field">
+            <label for="stelle">Stelle (hotel)</label>
+            <input type="text" id="stelle" name="stelle" value="{{ lead.stelle }}" placeholder="es. 4 stelle">
+          </div>
+          <div class="field">
+            <label for="valore_stimato">Valore potenziale (€)</label>
+            <input type="text" id="valore_stimato" name="valore_stimato"
+                   value="{{ lead.valore_stimato or '' }}" placeholder="es. 2500">
+          </div>
+          <div class="field">
+            <label for="prossima_azione">Prossima azione</label>
+            <input type="datetime-local" id="prossima_azione" name="prossima_azione"
+                   value="{{ lead.prossima_azione_at.strftime('%Y-%m-%dT%H:%M') if lead.prossima_azione_at else '' }}">
+            <span class="hint">Comparirà nella dashboard fra i "da ricontattare"</span>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Salva dati</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Info dallo scraper -->
+    <section class="card">
+      <div class="card-header"><h2>Dati raccolti</h2></div>
+      <div class="card-body stack" style="gap: 10px; font-size: 13px;">
+        <div class="row-between"><span class="muted">Zona</span><strong>{{ lead.zona or "—" }}</strong></div>
+        <div class="row-between"><span class="muted">Valutazione</span>
+          <strong>{% if lead.valutazione %}★ {{ "%.1f"|format(lead.valutazione) }} ({{ lead.numero_recensioni or 0 }}){% else %}—{% endif %}</strong></div>
+        <div class="row-between"><span class="muted">Fascia prezzo</span><strong>{{ lead.fascia_prezzo or "—" }}</strong></div>
+        <div class="row-between"><span class="muted">Sorgente</span><strong>{{ lead.sorgente or "—" }}</strong></div>
+        <div class="row-between"><span class="muted">In archivio da</span><strong>{{ lead.created_at | da_quanto }}</strong></div>
+        {% if lead.maps_url %}
+          <a href="{{ lead.maps_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm mt-4">
+            Apri sulla mappa ↗
+          </a>
+        {% endif %}
+        {% if lead.sito_web %}
+          <a href="{{ lead.sito_web }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm">
+            Apri il sito ↗
+          </a>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

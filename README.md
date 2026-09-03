@@ -1,127 +1,135 @@
-# hotel_restaurant_scraper
+# HoReCa Leads — scraper + dashboard commerciale
 
-Scraper in Python (con bella UI da terminale) per trovare **hotel** e
-**ristoranti** in una provincia o regione italiana, con i seguenti dati
-(quando disponibili):
+Sistema di lead generation per hotel e ristoranti italiani, in due parti:
 
-- Nome e indirizzo
-- Stelle (solo hotel, best-effort)
-- Sito web
-- Email
-- Numero di telefono
-- Social: Instagram, Facebook, LinkedIn
-- Valutazione e numero recensioni (sorgente Google)
-- Fascia di prezzo
-- Coordinate GPS e link mappa
-- Recensioni (facoltativo, solo sorgente Google: testo + voto + autore)
+1. **Scraper** — trova hotel e ristoranti per comune, provincia o regione e ne
+   estrae contatti, social, valutazioni e recensioni.
+2. **Dashboard privata (FastAPI)** — con login, lancia lo scraper, importa i
+   risultati **senza duplicati**, gestisce la **pipeline commerciale** e tiene
+   una **scheda note** completa per ogni potenziale cliente.
 
-## Come funziona
+---
 
-Due sorgenti dati selezionabili con `--source`:
+## Dashboard
 
-- **`osm` (default, gratis, nessuna API key)** — usa OpenStreetMap
-  (Nominatim per geocodificare la provincia/regione + Overpass API per
-  cercare gli hotel/ristoranti nell'area). Non fornisce rating/recensioni,
-  e la copertura dipende da quanto è mappata la zona su OSM.
-- **`google`** — usa **Google Places API (New)** (Text Search + Place
-  Details, incluse le recensioni). Più completo e affidabile, ma richiede
-  una API key con fatturazione attiva.
+### Cosa fa
 
-In entrambi i casi, se un sito web è disponibile, lo scraper lo visita
-(homepage + pagina contatti, se trovata) per estrarre **email** e link ai
-**social** (Instagram/Facebook/LinkedIn), dati che né OSM né Google
-forniscono in modo affidabile. Per gli hotel tenta anche di individuare le
-**stelle** cercando pattern come "4 stelle" nel testo del sito.
+- **Login privato** (bcrypt, sessioni firmate, CSRF, rate limiting).
+- **Avvio dello scraper** dall'interfaccia, con avanzamento live.
+- **Import deduplicato**: le strutture già in archivio non vengono duplicate; i
+  loro campi vuoti vengono completati con i nuovi dati.
+- **CSV** scaricabile per ogni ricerca (solo i lead nuovi) e export CSV
+  dell'elenco filtrato a schermo.
+- **Pipeline commerciale**: nuovo → contattato → ha risposto → incontro fissato
+  → incontro fatto → in trattativa → chiuso (vinto/perso).
+- **Registro contatti**: quando, con quale canale (email, telefono, WhatsApp,
+  Instagram, Facebook, LinkedIn, di persona) e con quale esito.
+- **Metriche**: contattabilità, funnel, tasso di risposta per canale, incontri,
+  trattative, conversione, valore pipeline, copertura per zona, da ricontattare.
+- **Scheda note a pagina intera** per ogni cliente: note testuali, foto,
+  screenshot, PDF e documenti, consultabili e modificabili in qualsiasi momento.
 
-Durante l'esecuzione l'interfaccia da terminale (libreria `rich`) mostra un
-banner con i parametri, una progress bar live per categoria, i risultati
-trovati man mano (con indicatori email/social) e una tabella di riepilogo
-finale con statistiche e percorso del file salvato.
-
-## Uso con Docker (consigliato)
-
-Non serve installare Python o dipendenze sulla tua macchina.
+### Avvio con Docker
 
 ```bash
-cp .env.example .env   # necessario solo se usi --source google
+cp .env.example .env
+# genera la chiave e incollala in SECRET_KEY:
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+# (facoltativo) incolla la tua GOOGLE_PLACES_API_KEY
 
 docker compose build
+docker compose up dashboard        # http://localhost:8000
 
-# Hotel e ristoranti in una provincia (sorgente OSM, gratis)
-docker compose run --rm scraper --location "Provincia di Lucca" --output output/lucca.csv
-
-# Solo hotel in una regione, sorgente Google con recensioni
-docker compose run --rm scraper --location "Toscana" --types hotel \
-    --source google --reviews --output output/hotel_toscana.csv
+# primo utente
+docker compose exec dashboard python -m app.cli create-user --email tu@esempio.it
 ```
 
-I file CSV/JSON generati compaiono nella cartella locale `./output`
-(montata come volume nel container).
-
-## Uso senza Docker
-
-Richiede Python 3.9+.
+### Avvio senza Docker
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # necessario solo se usi --source google
+cp .env.example .env               # imposta SECRET_KEY
 
-python -m scraper.main --location "Provincia di Firenze" --output firenze.csv
+python -m app.cli create-user --email tu@esempio.it
+uvicorn app.main:app --port 8000   # http://localhost:8000
 ```
 
-### Google Places API (opzionale, solo per `--source google`)
-
-1. Vai su https://console.cloud.google.com/
-2. Crea/seleziona un progetto, abilita **"Places API (New)"**
-3. Crea una API key (Credenziali → Crea credenziali → Chiave API)
-4. Attiva la fatturazione (quota gratuita mensile inclusa; oltre si paga a
-   consumo — consulta i prezzi ufficiali Google)
-5. Inserisci la chiave in `.env` come `GOOGLE_PLACES_API_KEY`
-
-## Esempi
+### Comandi utili
 
 ```bash
-# Hotel e ristoranti in una provincia (OSM, default)
-python -m scraper.main --location "Provincia di Firenze" --output firenze.csv
-
-# Solo hotel in una regione, sorgente Google con recensioni
-python -m scraper.main --location "Toscana" --types hotel --source google \
-    --reviews --output hotel_toscana.csv
-
-# Solo ristoranti, più risultati, anche export JSON
-python -m scraper.main --location "Provincia di Milano" --types ristorante \
-    --max-results 100 --output milano_ristoranti.csv --json milano_ristoranti.json
-
-# Output semplice (senza UI grafica), utile per log/CI
-python -m scraper.main --location "Sicilia" --no-ui
+python -m app.cli create-user --email tu@esempio.it --password '...'
+python -m app.cli set-password --email tu@esempio.it
+python -m app.cli list-users
+pytest -q                          # 60 test
 ```
 
-### Opzioni principali
+---
+
+## Scraper da riga di comando
+
+Utilizzabile anche da solo, senza dashboard.
+
+```bash
+# Più località insieme, sorgente gratuita OpenStreetMap
+python -m scraper.main --location "Riccione, Misano Adriatico, Cattolica" --output out.csv
+
+# Sorgente Google Places con recensioni
+python -m scraper.main --location "Provincia di Rimini" --source google --reviews --output rimini.csv
+
+# Con Docker
+docker compose run --rm scraper --location "Riccione" --source google --output output/riccione.csv
+```
+
+### Sorgenti dati
+
+| | `osm` (default) | `google` |
+|---|---|---|
+| API key | non serve | richiesta (Google Cloud, a consumo) |
+| Copertura | dipende dai contributi OpenStreetMap | molto ampia |
+| Valutazioni e recensioni | no | sì |
+| Telefono/indirizzo | parziali | quasi sempre presenti |
+
+In entrambi i casi, se la struttura ha un sito web lo scraper lo visita
+(homepage + pagina contatti) per estrarre **email** e **social**, e per gli
+hotel tenta di ricavare le **stelle**.
+
+### Opzioni
 
 | Opzione | Descrizione | Default |
 |---|---|---|
-| `--location` | Provincia, regione o comune italiano; più zone insieme separate da virgola, es. "Riccione, Misano Adriatico, Cattolica" | obbligatorio |
-| `--types` | `hotel`, `ristorante` o `hotel,ristorante` | `hotel,ristorante` |
-| `--source` | `osm` (gratis) o `google` (richiede API key) | `osm` |
-| `--max-results` | Numero massimo di risultati per categoria | `40` |
-| `--reviews` | Recupera anche le recensioni (solo `--source google`) | disattivo |
-| `--max-reviews` | Numero di recensioni esportate per luogo | `3` |
-| `--no-website-enrichment` | Salta la visita ai siti web (più veloce) | disattivo |
-| `--output` | File CSV di output | `risultati.csv` |
-| `--json` | File JSON opzionale di output | nessuno |
-| `--sleep` | Pausa tra le richieste (secondi) | `0.2` |
-| `--no-ui` | Disattiva l'interfaccia grafica da terminale | disattivo |
+| `--location` | Comune/provincia/regione; più zone separate da virgola | obbligatorio |
+| `--types` | `hotel`, `ristorante` o entrambi | `hotel,ristorante` |
+| `--source` | `osm` o `google` | `osm` |
+| `--max-results` | Massimo risultati per categoria | `40` |
+| `--reviews` | Scarica le recensioni (solo `google`) | disattivo |
+| `--no-website-enrichment` | Salta la visita ai siti (più veloce) | disattivo |
+| `--output` / `--json` | File di output | `risultati.csv` |
+| `--no-ui` | Output semplice senza interfaccia | disattivo |
+
+---
+
+## Struttura del progetto
+
+```
+scraper/     motore di scraping e CLI (core.py è condiviso con la dashboard)
+app/         dashboard FastAPI (router, servizi, modelli, template, static)
+tests/       suite pytest (rete esterna sempre mockata)
+CLAUDE.md    istruzioni di progetto per agenti AI e contributori
+```
+
+## Sicurezza
+
+- Password con bcrypt; nessun segreto nel repository (`.env` è ignorato).
+- Sessioni in cookie firmati `HttpOnly` + `SameSite=Lax`, `Secure` in produzione.
+- CSRF obbligatorio su ogni scrittura, verificato in middleware (fail-closed).
+- Upload: allowlist di tipi, limite 15 MB, nome su disco casuale, file serviti
+  solo a utenti autenticati.
+- Header di sicurezza (CSP, nosniff, X-Frame-Options, Referrer-Policy) su ogni
+  risposta; documentazione API disabilitata.
 
 ## Note
 
-- Il campo "stelle" per gli hotel non è fornito in modo affidabile da
-  nessuna delle due sorgenti: viene cercato nel testo del sito web della
-  struttura (o nel tag `stars` di OSM, se presente) e può risultare vuoto.
-- La sorgente `osm` è gratuita ma dipende dalla completezza dei dati su
-  OpenStreetMap per quella zona: alcune strutture potrebbero mancare o
-  avere pochi contatti compilati.
-- Rispetta i limiti di utilizzo delle API (Nominatim/Overpass hanno rate
-  limit pubblici; Google Places ha costi a consumo oltre la quota
-  gratuita): usa `--max-results` ragionevoli.
-- L'arricchimento dal sito web scarica solo homepage e (se trovata) la
-  pagina contatti: non effettua crawling profondo del sito.
+- Le stelle degli hotel non sono fornite in modo affidabile da nessuna sorgente:
+  vengono cercate nel sito della struttura e possono risultare vuote.
+- Rispetta i limiti d'uso delle API (Nominatim/Overpass hanno rate limit
+  pubblici; Google Places ha costi a consumo oltre la quota gratuita).

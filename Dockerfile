@@ -11,9 +11,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY scraper/ ./scraper/
+COPY app/ ./app/
 
-RUN mkdir -p /app/output
-VOLUME ["/app/output"]
+RUN mkdir -p /app/output /app/data
+VOLUME ["/app/output", "/app/data"]
 
+EXPOSE 8000
+
+# Default: la CLI dello scraper. La dashboard è il servizio "dashboard" del compose.
 ENTRYPOINT ["python", "-m", "scraper.main"]
 CMD ["--help"]

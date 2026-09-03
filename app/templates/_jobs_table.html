@@ -1,0 +1,63 @@
+{% if jobs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Località</th>
+          <th>Sorgente</th>
+          <th>Stato</th>
+          <th>Trovati</th>
+          <th>Nuovi</th>
+          <th>Già presenti</th>
+          <th>Quando</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+          <tr {% if job.stato in ("in_coda", "in_corso") %}data-job-attivo="1"{% endif %}>
+            <td>
+              <div class="cell-name truncate" style="max-width: 260px;">{{ job.localita }}</div>
+              <div class="subtle">{{ job.categorie.replace(",", " · ") }} · max {{ job.max_results }}</div>
+            </td>
+            <td class="cell-muted">{{ job.sorgente }}</td>
+            <td>
+              {% if job.stato == "in_corso" %}
+                <span class="badge badge-contattato"><span class="spinner"></span> In corso</span>
+              {% elif job.stato == "in_coda" %}
+                <span class="badge"><span class="dot-live"></span> In coda</span>
+              {% elif job.stato == "completato" %}
+                <span class="badge badge-chiuso_vinto">Completato</span>
+              {% else %}
+                <span class="badge badge-chiuso_perso" title="{{ job.errore }}">Fallito</span>
+              {% endif %}
+            </td>
+            <td>{{ job.trovati }}</td>
+            <td><strong>{{ job.nuovi }}</strong></td>
+            <td class="cell-muted">{{ job.duplicati }}</td>
+            <td class="cell-muted cell-nowrap">
+              {{ job.created_at | da_quanto }}
+              {% if job.durata_secondi %}<div class="subtle">{{ "%.0f"|format(job.durata_secondi) }}s</div>{% endif %}
+            </td>
+            <td class="cell-nowrap">
+              {% if job.csv_path %}
+                <a href="/scrape/{{ job.id }}/csv" class="btn btn-sm">CSV</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% if job.stato == "fallito" and job.errore %}
+            <tr>
+              <td colspan="8" class="subtle" style="color: var(--danger);">⚠ {{ job.errore | truncate(300) }}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="empty" style="padding: 40px 16px;">
+    <div class="empty-icon">🔍</div>
+    <h3>Nessuna ricerca eseguita</h3>
+    <p class="muted">Compila il modulo qui sopra per trovare le prime strutture.</p>
+  </div>
+{% endif %}
