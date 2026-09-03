@@ -100,7 +100,7 @@ python -m scraper.main --location "Sicilia" --no-ui
 
 | Opzione | Descrizione | Default |
 |---|---|---|
-| `--location` | Provincia o regione italiana (es. "Provincia di Torino", "Sicilia") | obbligatorio |
+| `--location` | Provincia, regione o comune italiano; più zone insieme separate da virgola, es. "Riccione, Misano Adriatico, Cattolica" | obbligatorio |
 | `--types` | `hotel`, `ristorante` o `hotel,ristorante` | `hotel,ristorante` |
 | `--source` | `osm` (gratis) o `google` (richiede API key) | `osm` |
 | `--max-results` | Numero massimo di risultati per categoria | `40` |

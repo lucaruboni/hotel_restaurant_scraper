@@ -26,7 +26,8 @@ def parse_args():
     parser.add_argument(
         "--location",
         required=True,
-        help='Provincia o regione italiana, es. "Provincia di Firenze" o "Toscana"',
+        help='Provincia, regione o comune italiano. Per più zone insieme separale con '
+        'una virgola, es. "Riccione, Misano Adriatico, Cattolica"',
     )
     parser.add_argument(
         "--types",
@@ -86,59 +87,71 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_osm(args, categories):
+def _enrich_result(result, category, no_website_enrichment):
+    if no_website_enrichment or not result.website:
+        return
+    try:
+        enrichment = enrich_from_website(result.website, is_hotel=(category == "hotel"))
+        if not result.email:
+            result.email = enrichment["email"]
+        if not result.instagram:
+            result.instagram = enrichment["instagram"]
+        if not result.facebook:
+            result.facebook = enrichment["facebook"]
+        if not result.linkedin:
+            result.linkedin = enrichment["linkedin"]
+        if enrichment["stars"] and not result.stars:
+            result.stars = enrichment["stars"]
+    except Exception as exc:
+        logger.debug("Errore arricchimento sito %s: %s", result.website, exc)
+
+
+def run_osm(args, categories, locations):
     from .osm_places import OSMPlacesClient
 
     client = OSMPlacesClient()
-    area = client.geocode_area(args.location)
-    if not area:
-        ui.print_error(
-            f"Zona '{args.location}' non trovata su OpenStreetMap. "
-            "Prova con un nome più preciso, es. 'Provincia di Lucca' o 'Toscana'."
-        )
-        sys.exit(1)
-
     all_results = []
+    seen = set()
     progress = ui.make_progress()
     with progress:
-        for category in categories:
-            places = list(client.search_places(area["area_id"], category, max_results=args.max_results))
-            task = progress.add_task(f"[cyan]Ricerca {category} in {area['display_name'][:40]}", total=len(places))
+        for location in locations:
+            area = client.geocode_area(location)
+            if not area:
+                ui.print_warning(
+                    f"Zona '{location}' non trovata su OpenStreetMap, la salto. "
+                    "Prova con un nome più preciso, es. 'Riccione' o 'Provincia di Rimini'."
+                )
+                continue
 
-            for element in places:
-                result = client.parse_place(element, category=category, location=args.location)
+            for category in categories:
+                places = list(client.search_places(area["area_id"], category, max_results=args.max_results))
+                task = progress.add_task(f"[cyan]Ricerca {category} in {area['display_name'][:40]}", total=len(places))
 
-                if not args.no_website_enrichment and result.website:
-                    try:
-                        enrichment = enrich_from_website(result.website, is_hotel=(category == "hotel"))
-                        if not result.email:
-                            result.email = enrichment["email"]
-                        if not result.instagram:
-                            result.instagram = enrichment["instagram"]
-                        if not result.facebook:
-                            result.facebook = enrichment["facebook"]
-                        if not result.linkedin:
-                            result.linkedin = enrichment["linkedin"]
-                        if enrichment["stars"] and not result.stars:
-                            result.stars = enrichment["stars"]
-                    except Exception as exc:
-                        logger.debug("Errore arricchimento sito %s: %s", result.website, exc)
+                for element in places:
+                    result = client.parse_place(element, category=category, location=location)
+                    key = (result.category, result.name.lower(), result.address.lower())
+                    if key in seen:
+                        progress.advance(task)
+                        continue
+                    seen.add(key)
 
-                all_results.append(result)
-                progress.advance(task)
-                if not args.no_ui:
-                    ui.print_place_found(
-                        result.name,
-                        category,
-                        has_email=bool(result.email),
-                        has_social=bool(result.instagram or result.facebook or result.linkedin),
-                    )
-                time.sleep(args.sleep)
+                    _enrich_result(result, category, args.no_website_enrichment)
+
+                    all_results.append(result)
+                    progress.advance(task)
+                    if not args.no_ui:
+                        ui.print_place_found(
+                            result.name,
+                            category,
+                            has_email=bool(result.email),
+                            has_social=bool(result.instagram or result.facebook or result.linkedin),
+                        )
+                    time.sleep(args.sleep)
 
     return all_results
 
 
-def run_google(args, categories):
+def run_google(args, categories, locations):
     from .google_places import GooglePlacesClient
 
     try:
@@ -148,44 +161,41 @@ def run_google(args, categories):
         sys.exit(1)
 
     all_results = []
+    seen = set()
     progress = ui.make_progress()
     with progress:
-        for category in categories:
-            task = progress.add_task(f"[cyan]Ricerca {category} in {args.location}", total=args.max_results)
-            for place in client.search_places(location=args.location, category=category, max_results=args.max_results):
-                result = client.parse_place(place, category=category, location=args.location)
-                place_id = place.get("id")
+        for location in locations:
+            for category in categories:
+                task = progress.add_task(f"[cyan]Ricerca {category} in {location}", total=args.max_results)
+                for place in client.search_places(location=location, category=category, max_results=args.max_results):
+                    result = client.parse_place(place, category=category, location=location)
+                    key = (result.category, result.name.lower(), result.address.lower())
+                    if key in seen:
+                        progress.advance(task)
+                        continue
+                    seen.add(key)
 
-                if args.reviews and place_id:
-                    try:
-                        details = client.get_details(place_id)
-                        result.reviews = client.parse_reviews(details, max_reviews=args.max_reviews)
-                    except Exception as exc:
-                        ui.print_warning(f"Recensioni non disponibili per {result.name}: {exc}")
+                    place_id = place.get("id")
+                    if args.reviews and place_id:
+                        try:
+                            details = client.get_details(place_id)
+                            result.reviews = client.parse_reviews(details, max_reviews=args.max_reviews)
+                        except Exception as exc:
+                            ui.print_warning(f"Recensioni non disponibili per {result.name}: {exc}")
+                        time.sleep(args.sleep)
+
+                    _enrich_result(result, category, args.no_website_enrichment)
+
+                    all_results.append(result)
+                    progress.advance(task)
+                    if not args.no_ui:
+                        ui.print_place_found(
+                            result.name,
+                            category,
+                            has_email=bool(result.email),
+                            has_social=bool(result.instagram or result.facebook or result.linkedin),
+                        )
                     time.sleep(args.sleep)
-
-                if not args.no_website_enrichment and result.website:
-                    try:
-                        enrichment = enrich_from_website(result.website, is_hotel=(category == "hotel"))
-                        result.email = enrichment["email"]
-                        result.instagram = enrichment["instagram"]
-                        result.facebook = enrichment["facebook"]
-                        result.linkedin = enrichment["linkedin"]
-                        if enrichment["stars"]:
-                            result.stars = enrichment["stars"]
-                    except Exception as exc:
-                        logger.debug("Errore arricchimento sito %s: %s", result.website, exc)
-
-                all_results.append(result)
-                progress.advance(task)
-                if not args.no_ui:
-                    ui.print_place_found(
-                        result.name,
-                        category,
-                        has_email=bool(result.email),
-                        has_social=bool(result.instagram or result.facebook or result.linkedin),
-                    )
-                time.sleep(args.sleep)
 
     return all_results
 
@@ -198,14 +208,19 @@ def run(args):
             ui.print_error(f"Categoria non valida: {c} (valide: hotel, ristorante)")
             sys.exit(1)
 
+    locations = [loc.strip() for loc in args.location.split(",") if loc.strip()]
+    if not locations:
+        ui.print_error("Nessuna zona valida specificata in --location")
+        sys.exit(1)
+
     if not args.no_ui:
-        ui.print_banner(args.location, categories, args.source, args.max_results)
+        ui.print_banner(", ".join(locations), categories, args.source, args.max_results)
 
     start = time.time()
     if args.source == "google":
-        all_results = run_google(args, categories)
+        all_results = run_google(args, categories, locations)
     else:
-        all_results = run_osm(args, categories)
+        all_results = run_osm(args, categories, locations)
     elapsed = time.time() - start
 
     export_csv(all_results, args.output, max_reviews=args.max_reviews)
