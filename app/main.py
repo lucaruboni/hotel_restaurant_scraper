@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .database import SessionLocal, init_db
 from .deps import RedirectToLogin, get_session_data
+from .mcp_server import crea_mcp_app, mcp_mount
 from .middleware import CSRFMiddleware
 from .models import User
 from .routers import auth, dashboard, leads, notes, scrape
@@ -29,7 +30,8 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 # Percorsi che non richiedono un token CSRF (nessuna sessione ancora attiva).
-CSRF_EXEMPT = {"/login"}
+# /mcp non usa cookie di sessione: l'autenticazione è il suo token bearer.
+CSRF_EXEMPT = {"/login", "/mcp", "/mcp/"}
 
 CSP = (
     "default-src 'self'; "
@@ -49,7 +51,15 @@ async def lifespan(app: FastAPI):
     recuperati = recupera_job_interrotti()
     if recuperati:
         logger.warning("%s job interrotti dal riavvio precedente sono stati segnati come falliti", recuperati)
-    yield
+    # Il server MCP è montato come sotto-applicazione: FastAPI non avvia da
+    # solo il lifespan di una sotto-app montata, va agganciato qui a mano
+    # (altrimenti il session manager dell'SDK non gira e /mcp non risponde).
+    # Sotto-app ricreata a ogni avvio: il suo session_manager può partire una
+    # sola volta per istanza (vedi mcp_server.crea_mcp_app).
+    mcp_app = crea_mcp_app()
+    mcp_mount.imposta(mcp_app)
+    async with mcp_app.router.lifespan_context(mcp_app):
+        yield
 
 
 def create_app() -> FastAPI:
@@ -63,6 +73,7 @@ def create_app() -> FastAPI:
     )
 
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    app.mount("/mcp", mcp_mount)
 
     @app.middleware("http")
     async def contesto_e_header(request: Request, call_next):

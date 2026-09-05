@@ -75,5 +75,9 @@ class Settings:
         self.google_api_key = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
         self.max_results_cap = int(os.getenv("MAX_RESULTS_CAP", 200))
 
+        # MCP: accesso in sola lettura per Claude (routine, segmenti, metriche).
+        # Vuoto per default: l'endpoint /mcp resta chiuso finché non lo imposti.
+        self.mcp_api_key = os.getenv("MCP_API_KEY", "").strip()
+
 
 settings = Settings()

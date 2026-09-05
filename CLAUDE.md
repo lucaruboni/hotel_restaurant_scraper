@@ -143,6 +143,7 @@ app/                     dashboard FastAPI
   models.py              User, Lead, Interaction, Note, Attachment, ScrapeJob
   security.py            hashing password, sessioni firmate, CSRF, rate limit
   deps.py                dipendenze FastAPI (utente corrente, DB)
+  mcp_server.py           server MCP in sola lettura per Claude (routine, segmenti, metriche)
   services/
     leads.py             import deduplicato, filtri, export CSV
     metrics.py           KPI e funnel

@@ -106,6 +106,37 @@ pena verificarlo anche a livello di rete.
 
 Per fermare l'esposizione: `sudo tailscale serve --https=443 off`.
 
+### Collegare Claude in sola lettura (MCP)
+
+La dashboard espone un endpoint MCP (`/mcp`) che un connettore remoto in
+Claude può leggere per costruire una routine, senza che tu debba incollare
+dati a mano. È **sola lettura**: nessuno strumento aggiorna stati, registra
+interazioni o cancella nulla — per quello resta la dashboard.
+
+```bash
+# Genera una chiave e incollala in .env alla riga MCP_API_KEY=
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+docker compose up -d dashboard   # riavvia per caricare la chiave
+```
+
+Senza `MCP_API_KEY` impostata, `/mcp` risponde sempre `401` — è chiuso di
+default. In Claude (Desktop o web), aggiungi un connettore remoto con:
+
+- **URL**: `https://sommelier-1.tail1583df.ts.net:9443/mcp/` (o l'indirizzo
+  Tailscale della tua istanza)
+- **Autenticazione**: header `Authorization: Bearer <la tua MCP_API_KEY>`
+
+Raggiungibile solo da un dispositivo collegato alla stessa rete Tailscale
+(vedi sopra) — Claude deve girare su una macchina in quella rete, non è
+accessibile da internet. Gli strumenti disponibili:
+
+| Strumento | Cosa restituisce |
+|---|---|
+| `routine_di_oggi` | Nuovi lead da contattare, da ricontattare, incontri fissati, trattative aperte |
+| `conteggi_segmenti` | Quanti lead in ciascun segmento (con/senza contatto, contattati, in trattativa, chiusi persi/vinti) |
+| `elenco_lead` | Lead filtrati per segmento/categoria/zona/ricerca testuale |
+| `metriche_generali` | KPI della dashboard: contattabilità, tassi di risposta/chiusura, valore pipeline |
+
 ---
 
 ## Scraper da riga di comando
