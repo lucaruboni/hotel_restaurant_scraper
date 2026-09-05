@@ -1,12 +1,16 @@
 """Dashboard: metriche commerciali e stato generale."""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Interaction, Lead, ScrapeJob, User
+from ..services.leads import leads_routine_di_oggi, leads_to_csv
 from ..services.metrics import calcola_metriche
 from ..templating import render
 
@@ -43,4 +47,21 @@ def dashboard(
             "ultimi_lead": ultimi_lead,
             "pagina": "dashboard",
         },
+    )
+
+
+@router.get("/routine.csv")
+def routine_csv(
+    db: Session = Depends(get_db),
+    utente: User = Depends(get_current_user),
+):
+    """CSV dei lead della routine di oggi, pronto da incollare in una
+    routine di Claude quando te lo chiede."""
+    leads = leads_routine_di_oggi(db)
+    contenuto = leads_to_csv(leads)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+    return Response(
+        content=contenuto.encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="routine-{timestamp}.csv"'},
     )

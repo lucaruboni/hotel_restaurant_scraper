@@ -226,3 +226,26 @@ def test_dashboard_mostra_la_routine_di_oggi(client_auth, db):
     risposta = client_auth.get("/")
     assert "Routine di oggi" in risposta.text
     assert "Contatta i nuovi lead" in risposta.text
+
+
+def test_routine_csv_contiene_i_lead_giusti(client_auth, db):
+    from app.models import LeadStatus
+    from app.services.leads import leads_routine_di_oggi
+
+    crea_lead(db, nome="Nuovo Contattabile", sito_web="https://a.it")
+    crea_lead(db, nome="Nuovo Senza Contatti", sito_web="https://b.it", email="", telefono="")
+    incontro = crea_lead(db, nome="Con Incontro", sito_web="https://c.it")
+    aggiorna_status(db, incontro, LeadStatus.INCONTRO_FISSATO.value)
+
+    risposta = client_auth.get("/routine.csv")
+    assert risposta.status_code == 200
+    testo = risposta.content.decode("utf-8-sig")
+    assert "Nuovo Contattabile" in testo
+    assert "Con Incontro" in testo
+    assert "Nuovo Senza Contatti" not in testo
+
+
+def test_dashboard_ha_il_pulsante_copia_routine(client_auth, db):
+    crea_lead(db, nome="Qualsiasi", sito_web="https://qualsiasi.it")
+    risposta = client_auth.get("/")
+    assert 'data-copy-url="/routine.csv"' in risposta.text

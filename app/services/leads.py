@@ -293,6 +293,32 @@ def conta_segmenti(db: Session) -> dict[str, int]:
     return conteggi
 
 
+def leads_routine_di_oggi(db: Session) -> list[Lead]:
+    """I lead rilevanti per la routine di oggi (vedi dashboard): nuovi
+    contattabili, da ricontattare, incontri fissati, trattative aperte.
+    Un lead può comparire per più motivi ma esce una volta sola, ordinato
+    per priorità (prima chi aspetta un'azione, poi i nuovi da contattare)."""
+    condizione = (
+        ((Lead.status == LeadStatus.NUOVO.value) & ((Lead.email != "") | (Lead.telefono != "")))
+        | (Lead.prossima_azione_at.is_not(None) & Lead.status.notin_(
+            [LeadStatus.CHIUSO_VINTO.value, LeadStatus.CHIUSO_PERSO.value]
+        ))
+        | (Lead.status == LeadStatus.INCONTRO_FISSATO.value)
+        | (Lead.status == LeadStatus.IN_TRATTATIVA.value)
+    )
+    ordine_priorita = {
+        LeadStatus.INCONTRO_FISSATO.value: 0,
+        LeadStatus.IN_TRATTATIVA.value: 1,
+    }
+    leads = list(db.execute(select(Lead).where(condizione)).scalars().all())
+    leads.sort(key=lambda l: (
+        0 if l.prossima_azione_at else 1,
+        ordine_priorita.get(l.status, 2),
+        l.prossima_azione_at or l.created_at,
+    ))
+    return leads
+
+
 def registra_interazione(
     db: Session,
     lead: Lead,

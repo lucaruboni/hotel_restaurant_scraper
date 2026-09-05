@@ -152,7 +152,12 @@
       <section class="card">
         <div class="card-header">
           <h2>Routine di oggi</h2>
-          <span class="subtle">stesso ordine per tutti e due</span>
+          <div class="row">
+            <span class="subtle">stesso ordine per tutti e due</span>
+            <button type="button" class="btn btn-sm btn-ghost"
+                    title="Copia il CSV della routine di oggi per incollarlo in una routine di Claude"
+                    data-copy-url="/routine.csv">Copia per Claude</button>
+          </div>
         </div>
         <div class="card-body">
           <ul class="routine-list">
