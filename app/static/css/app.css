@@ -76,6 +76,7 @@ body {
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; /* rete di sicurezza: lo scroll orizzontale è sempre e solo dentro .table-wrap */
 }
 
 h1, h2, h3, h4 { margin: 0; font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; line-height: 1.2; }
@@ -169,6 +170,7 @@ img { max-width: 100%; display: block; }
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  min-width: 0;
 }
 .card-header {
   padding: var(--sp-4) var(--sp-5);
@@ -182,7 +184,7 @@ img { max-width: 100%; display: block; }
 .grid-kpi { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .grid-2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
 .grid-main { grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); align-items: start; }
-.grid-leads { grid-template-columns: 1fr; } /* mobile-first: una colonna, il pannello segmenti sopra la tabella */
+.grid-leads { grid-template-columns: minmax(0, 1fr); } /* mobile-first: una colonna, il pannello segmenti sopra la tabella */
 
 /* Mobile-first: di base è una barra orizzontale scorrevole sotto il titolo
    (comoda da scorrere col pollice). Solo da tablet in su (vedi media query
@@ -453,7 +455,7 @@ tbody tr:hover { background: var(--bg-hover); }
 .login-brand { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-6); }
 
 /* Utility */
-.stack { display: flex; flex-direction: column; gap: var(--sp-4); }
+.stack { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 .row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
 .muted { color: var(--text-muted); }
@@ -502,18 +504,37 @@ tbody tr:hover { background: var(--bg-hover); }
 }
 
 @media (max-width: 820px) {
+  /* Sotto questa soglia la sidebar diventa una tab bar fissa in fondo allo
+     schermo, come nelle app native — non una barra in alto che si scrolla
+     via col resto della pagina. */
   .layout { flex-direction: column; }
   .sidebar {
-    width: 100%; height: auto; position: static;
-    flex-direction: row; align-items: center; overflow-x: auto;
-    padding: var(--sp-3);
+    width: 100%; height: auto; position: fixed; top: auto; bottom: 0; left: 0; right: 0;
+    flex-direction: row; align-items: stretch; justify-content: space-around; gap: 0;
+    padding: var(--sp-1) var(--sp-2);
+    padding-bottom: calc(var(--sp-1) + env(safe-area-inset-bottom));
+    border-right: none; border-top: 1px solid var(--surface-border);
+    z-index: 30;
   }
-  .brand { padding: 0 var(--sp-3) 0 0; }
-  .nav { flex-direction: row; }
-  .nav-link span { display: none; }
-  .sidebar-footer { margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; border-left: 1px solid var(--surface-border); padding-left: var(--sp-3); }
+  .brand { display: none; } /* il marchio resta nella topbar in alto via il titolo pagina */
+  .nav { flex-direction: row; flex: 1; gap: 0; }
+  .nav-link {
+    flex-direction: column; flex: 1; gap: 2px;
+    padding: 6px 4px; border-radius: var(--radius-sm);
+    font-size: 10.5px; text-align: center;
+  }
+  .nav-link svg { width: 20px; height: 20px; }
+  .sidebar-footer {
+    margin: 0; padding: 0 0 0 var(--sp-2); border-top: none; border-left: 1px solid var(--surface-border);
+    display: flex; align-items: center; gap: var(--sp-1);
+  }
+  .user-chip { padding: var(--sp-2); }
   .user-chip span { display: none; }
+  .sidebar-footer form { margin-top: 0 !important; }
+  .sidebar-footer .btn { width: auto; padding: 6px 10px; font-size: 11px; }
+  .main { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
   .topbar, .content { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  .topbar { padding-top: calc(var(--sp-4) + env(safe-area-inset-top)); }
   .funnel-step { grid-template-columns: 110px 1fr 60px; }
 }
 

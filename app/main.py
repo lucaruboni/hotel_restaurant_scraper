@@ -1,8 +1,13 @@
 """Applicazione FastAPI: dashboard privata per la pipeline commerciale HoReCa."""
 
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Alcuni sistemi non conoscono ancora questa estensione: senza il tipo giusto
+# il browser rifiuta di installare l'app dalla schermata Home.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
