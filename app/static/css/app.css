@@ -257,8 +257,9 @@ img { max-width: 100%; display: block; }
 .badge-in_trattativa { background: var(--warning-soft); color: var(--warning); }
 .badge-chiuso_vinto { background: var(--success-soft); color: var(--success); }
 .badge-chiuso_perso { background: var(--danger-soft); color: var(--danger); }
-.badge-hotel { background: var(--accent-soft); color: var(--accent); }
-.badge-ristorante { background: var(--warning-soft); color: var(--warning); }
+.badge-ricettivo { background: var(--accent-soft); color: var(--accent); }
+.badge-professionisti { background: var(--info-soft); color: var(--info); }
+.badge-ecommerce { background: var(--success-soft); color: var(--success); }
 
 /* Bottoni */
 .btn {
@@ -314,6 +315,15 @@ input[type="file"] { font-size: 13px; color: var(--text-muted); }
   font-size: 13.5px; color: var(--text); cursor: pointer; user-select: none;
 }
 .checkbox input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.checkbox:has(input:disabled) { opacity: 0.45; cursor: not-allowed; }
+.checkbox:has(input:disabled) input { cursor: not-allowed; }
+
+.categoria-gruppo { margin-top: var(--sp-3); }
+.categoria-gruppo:first-of-type { margin-top: var(--sp-2); }
+.categoria-gruppo-titolo {
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--text-subtle); margin-bottom: var(--sp-2);
+}
 
 /* Tabelle */
 .table-wrap { overflow-x: auto; }

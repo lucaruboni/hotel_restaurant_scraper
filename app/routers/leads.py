@@ -24,6 +24,13 @@ router = APIRouter(prefix="/leads")
 PER_PAGINA = 50
 
 
+def _bool_da_query(contattabili: str = Query("")) -> bool:
+    """Booleano tollerante: un link con `contattabili=` vuoto (es. "pagina
+    successiva" salvata prima che il filtro venisse valorizzato) non deve far
+    fallire la richiesta con un 422 — vale semplicemente "false"."""
+    return contattabili.strip().lower() in ("true", "1", "on", "si")
+
+
 def _get_lead(db: Session, lead_id: int) -> Lead:
     lead = db.get(Lead, lead_id)
     if lead is None:
@@ -52,7 +59,7 @@ def elenco(
     status: str = Query(""),
     categoria: str = Query(""),
     zona: str = Query(""),
-    contattabili: bool = Query(False),
+    contattabili: bool = Depends(_bool_da_query),
     ordina: str = Query("recenti"),
     pagina: int = Query(1, ge=1),
 ):
@@ -88,7 +95,7 @@ def export_csv(
     status: str = Query(""),
     categoria: str = Query(""),
     zona: str = Query(""),
-    contattabili: bool = Query(False),
+    contattabili: bool = Depends(_bool_da_query),
     ordina: str = Query("recenti"),
 ):
     """Esporta in CSV esattamente i lead filtrati a schermo (già deduplicati)."""

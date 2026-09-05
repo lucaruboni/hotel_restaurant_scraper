@@ -1,5 +1,5 @@
 services:
-  # Dashboard privata: http://localhost:8000
+  # Dashboard privata: http://localhost:${DASHBOARD_PORT:-8010}
   dashboard:
     build: .
     image: hotel-restaurant-scraper:latest
@@ -10,7 +10,10 @@ services:
     environment:
       DATA_DIR: /app/data
     ports:
-      - "8000:8000"
+      # Solo localhost: su un server con IP pubblico (es. istanza cloud) NON
+      # deve essere raggiungibile da internet. L'esposizione privata avviene
+      # con `tailscale serve` (vedi README), che si collega qui via loopback.
+      - "127.0.0.1:${DASHBOARD_PORT:-8010}:8000"
     volumes:
       - ./data:/app/data
       - ./output:/app/output

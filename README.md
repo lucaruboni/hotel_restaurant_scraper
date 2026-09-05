@@ -1,9 +1,10 @@
 # HoReCa Leads — scraper + dashboard commerciale
 
-Sistema di lead generation per hotel e ristoranti italiani, in due parti:
+Sistema di lead generation per il mercato italiano, in due parti:
 
-1. **Scraper** — trova hotel e ristoranti per comune, provincia o regione e ne
-   estrae contatti, social, valutazioni e recensioni.
+1. **Scraper** — trova hotel, ristoranti, professionisti e potenziali clienti
+   e-commerce per comune, provincia o regione e ne estrae contatti, social,
+   valutazioni e recensioni.
 2. **Dashboard privata (FastAPI)** — con login, lancia lo scraper, importa i
    risultati **senza duplicati**, gestisce la **pipeline commerciale** e tiene
    una **scheda note** completa per ogni potenziale cliente.
@@ -38,7 +39,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 # (facoltativo) incolla la tua GOOGLE_PLACES_API_KEY
 
 docker compose build
-docker compose up dashboard        # http://localhost:8000
+docker compose up dashboard        # http://localhost:8010 (vedi DASHBOARD_PORT in .env)
 
 # primo utente
 docker compose exec dashboard python -m app.cli create-user --email tu@esempio.it
@@ -51,7 +52,7 @@ pip install -r requirements.txt
 cp .env.example .env               # imposta SECRET_KEY
 
 python -m app.cli create-user --email tu@esempio.it
-uvicorn app.main:app --port 8000   # http://localhost:8000
+uvicorn app.main:app --port 8010   # http://localhost:8010
 ```
 
 ### Comandi utili
@@ -60,8 +61,47 @@ uvicorn app.main:app --port 8000   # http://localhost:8000
 python -m app.cli create-user --email tu@esempio.it --password '...'
 python -m app.cli set-password --email tu@esempio.it
 python -m app.cli list-users
-pytest -q                          # 60 test
+pytest -q                          # 65 test
 ```
+
+### Esposizione privata su un server cloud (Tailscale)
+
+La dashboard contiene dati commerciali reali: su un'istanza con IP pubblico
+(es. Oracle Cloud, AWS, ecc.) **non deve mai essere raggiungibile da
+internet**. `docker-compose.yml` pubblica la porta solo su `127.0.0.1`:
+resta invisibile dall'esterno finché non la esponi esplicitamente sulla tua
+rete privata Tailscale.
+
+```bash
+# 1. Installa Tailscale sul server (una volta sola)
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up          # apre un link: autenticati con il tuo account Tailscale
+
+# 2. Avvia la dashboard (bind solo su localhost, come da docker-compose.yml)
+docker compose up -d dashboard
+
+# 3. Esponila SOLO sulla tua tailnet, con HTTPS automatico
+sudo tailscale serve --bg https / http://127.0.0.1:8010
+```
+
+Da questo momento la dashboard è raggiungibile solo dai tuoi dispositivi
+collegati alla stessa rete Tailscale, all'indirizzo mostrato da:
+
+```bash
+tailscale status   # mostra il nome macchina, es. sommelier.tuo-tailnet.ts.net
+```
+
+apri quindi `https://sommelier.tuo-tailnet.ts.net` da un browser su un
+dispositivo che ha fatto login sulla stessa rete Tailscale.
+
+**Non usare `tailscale funnel`** al posto di `serve`: `funnel` pubblica la
+porta sull'internet pubblico (l'opposto di quello che vogliamo qui). Se in
+futuro un firewall/Security List del cloud provider dovesse comunque avere
+la porta 8010 aperta verso l'esterno, chiudila: con il binding a
+`127.0.0.1` il rischio è già escluso a livello di container, ma vale la
+pena verificarlo anche a livello di rete.
+
+Per fermare l'esposizione: `sudo tailscale serve --https=443 off`.
 
 ---
 
@@ -79,6 +119,21 @@ python -m scraper.main --location "Provincia di Rimini" --source google --review
 # Con Docker
 docker compose run --rm scraper --location "Riccione" --source google --output output/riccione.csv
 ```
+
+### Categorie
+
+Le categorie sono definite in [`scraper/categories.py`](scraper/categories.py), unica
+fonte di verità condivisa da CLI e dashboard, raggruppate in tre profili di ricerca:
+
+| Profilo | Categorie | Sorgente |
+|---|---|---|
+| **Ricettivo** | hotel, ristorante, bar, campeggio (campeggi e glamping), villaggio_turistico | `osm` (hotel/ristorante anche `google`) |
+| **Professionisti** | fotografo, social_media_manager, avvocato, commercialista, architetto, geometra | solo `google` — su OSM sono quasi sempre assenti |
+| **Ecommerce** | frantoio, azienda_agricola, pasticceria, torrefazione, birrificio, vivaio, bottega_artigiana | `osm` |
+
+Ogni categoria dichiara le sorgenti con cui è cercabile; selezionarne una con
+la sorgente sbagliata (es. `avvocato` con `osm`) restituisce un errore
+esplicito invece di una ricerca silenziosamente vuota.
 
 ### Sorgenti dati
 
@@ -98,7 +153,7 @@ hotel tenta di ricavare le **stelle**.
 | Opzione | Descrizione | Default |
 |---|---|---|
 | `--location` | Comune/provincia/regione; più zone separate da virgola | obbligatorio |
-| `--types` | `hotel`, `ristorante` o entrambi | `hotel,ristorante` |
+| `--types` | Categorie separate da virgola, vedi tabella sopra | `hotel,ristorante` |
 | `--source` | `osm` o `google` | `osm` |
 | `--max-results` | Massimo risultati per categoria | `40` |
 | `--reviews` | Scarica le recensioni (solo `google`) | disattivo |

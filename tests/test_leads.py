@@ -176,3 +176,34 @@ def test_export_csv_riporta_lo_stato_leggibile(db):
     lead = crea_lead(db)
     aggiorna_status(db, lead, LeadStatus.IN_TRATTATIVA.value)
     assert "In trattativa" in leads_to_csv([lead])
+
+
+def test_pagina_successiva_con_contattabili_vuoto_non_va_in_errore(client_auth):
+    """Il link 'pagina successiva' generato dal template passa contattabili=""
+    quando il filtro non è attivo: prima della correzione FastAPI rispondeva
+    422 (bool_parsing) invece di mostrare la pagina."""
+    risposta = client_auth.get("/leads?pagina=2&contattabili=")
+    assert risposta.status_code == 200
+
+
+def test_contattabili_accetta_anche_valori_alternativi(client_auth):
+    for valore in ("true", "1", "on", "si", "TRUE"):
+        risposta = client_auth.get(f"/leads?contattabili={valore}")
+        assert risposta.status_code == 200, valore
+
+
+def test_pagina_leads_elenca_tutte_le_categorie_nel_filtro(client_auth):
+    risposta = client_auth.get("/leads")
+    assert risposta.status_code == 200
+    html = risposta.text
+    for etichetta in ("Fotografi", "Frantoi", "Studi legali"):
+        assert etichetta in html
+
+
+def test_badge_categoria_usa_il_gruppo_e_l_etichetta(client_auth, db):
+    from tests.conftest import crea_lead
+
+    crea_lead(db, nome="Studio Rossi", categoria="avvocato")
+    risposta = client_auth.get("/leads")
+    assert "badge-professionisti" in risposta.text
+    assert "Studi legali" in risposta.text

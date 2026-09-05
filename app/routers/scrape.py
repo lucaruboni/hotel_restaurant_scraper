@@ -7,7 +7,8 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from scraper.core import CATEGORIE_VALIDE, SORGENTI_VALIDE, parse_locations
+from scraper.categories import CATEGORIES, CATEGORIE_VALIDE, categorie_raggruppate
+from scraper.core import SORGENTI_VALIDE, parse_locations
 
 from ..config import settings
 from ..database import get_db
@@ -37,6 +38,7 @@ def pagina_scrape(
             "in_corso": in_corso,
             "google_disponibile": bool(settings.google_api_key),
             "max_results_cap": settings.max_results_cap,
+            "gruppi_categorie": categorie_raggruppate(),
             "pagina": "scrape",
         },
     )
@@ -69,6 +71,14 @@ def avvia_scrape(
             detail="Sorgente Google selezionata ma GOOGLE_PLACES_API_KEY non è configurata nel .env",
         )
 
+    incompatibili = [c for c in categorie_pulite if sorgente not in CATEGORIES[c].sorgenti]
+    if incompatibili:
+        etichette = ", ".join(CATEGORIES[c].label for c in incompatibili)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Con la sorgente '{sorgente}' non puoi cercare: {etichette}",
+        )
+
     max_results = max(1, min(max_results, settings.max_results_cap))
 
     job = crea_job(
@@ -83,6 +93,60 @@ def avvia_scrape(
     )
     avvia_job(job.id)
     return RedirectResponse("/scrape?msg=Scraping+avviato", status_code=303)
+
+
+@router.post("/{job_id}/annulla")
+def annulla_scrape(
+    job_id: int,
+    db: Session = Depends(get_db),
+    utente: User = Depends(get_current_user),
+):
+    """Richiede l'arresto di un job in corso. Non è immediato: lo scraper
+    controlla la richiesta fra un luogo/categoria e l'altro, quindi tra la
+    pressione del pulsante e lo stop effettivo possono passare pochi secondi.
+    I risultati già raccolti fino a quel momento vengono comunque salvati."""
+    job = db.get(ScrapeJob, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Ricerca non trovata")
+    if job.stato in ("in_coda", "in_corso"):
+        job.annullamento_richiesto = True
+        db.commit()
+    return RedirectResponse("/scrape?msg=Richiesta+di+arresto+inviata", status_code=303)
+
+
+@router.post("/{job_id}/riprova")
+def riprova_scrape(
+    job_id: int,
+    db: Session = Depends(get_db),
+    utente: User = Depends(get_current_user),
+):
+    """Rilancia una ricerca fallita o annullata con esattamente gli stessi
+    parametri, senza dover ricompilare il modulo."""
+    vecchio = db.get(ScrapeJob, job_id)
+    if vecchio is None:
+        raise HTTPException(status_code=404, detail="Ricerca non trovata")
+    if vecchio.stato not in ("fallito", "annullato"):
+        raise HTTPException(
+            status_code=400, detail="Si può rilanciare solo una ricerca fallita o annullata"
+        )
+    if vecchio.sorgente == "google" and not settings.google_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Sorgente Google ma GOOGLE_PLACES_API_KEY non è configurata nel .env",
+        )
+
+    job = crea_job(
+        db,
+        localita=vecchio.localita,
+        categorie=[c.strip() for c in vecchio.categorie.split(",") if c.strip()],
+        sorgente=vecchio.sorgente,
+        max_results=vecchio.max_results,
+        con_recensioni=vecchio.con_recensioni,
+        con_arricchimento=vecchio.con_arricchimento,
+        user_id=utente.id,
+    )
+    avvia_job(job.id)
+    return RedirectResponse("/scrape?msg=Ricerca+rilanciata", status_code=303)
 
 
 @router.get("/stato", response_class=None)

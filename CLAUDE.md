@@ -7,14 +7,26 @@ repository. Leggilo **prima** di scrivere codice.
 
 ## 1. Cos'è questo progetto
 
-Un sistema di **lead generation per il settore HoReCa italiano** (hotel e
-ristoranti), composto da due parti:
+Un sistema di **lead generation per il mercato italiano**, nato per il settore
+HoReCa (hotel e ristoranti) e poi esteso a tre profili commerciali distinti,
+composto da due parti:
 
-1. **Scraper** (`scraper/`) — CLI che trova hotel e ristoranti per
+1. **Scraper** (`scraper/`) — CLI che trova potenziali clienti per
    provincia / regione / comune e ne estrae: nome, indirizzo, telefono, email,
    sito web, social (Instagram/Facebook/LinkedIn), stelle (hotel), valutazioni
-   e recensioni. Due sorgenti: `osm` (OpenStreetMap, gratis) e `google`
-   (Google Places API, richiede API key).
+   e recensioni. Le categorie sono definite in `scraper/categories.py`, unica
+   fonte di verità condivisa da CLI e dashboard, raggruppate in tre profili:
+   - **ricettivo**: hotel, ristoranti, bar, campeggi/glamping, villaggi
+     turistici — sorgente `osm` (OpenStreetMap, gratis);
+   - **professionisti**: fotografi, social media manager, avvocati,
+     commercialisti, architetti, geometri — sorgente `google` (OSM li copre
+     troppo poco per essere utile);
+   - **ecommerce**: produttori e botteghe artigiane candidati a un e-commerce
+     che spesso non hanno ancora (frantoi, aziende agricole, pasticcerie,
+     torrefazioni, birrifici, vivai, botteghe artigiane) — sorgente `osm`.
+   Ogni categoria dichiara le sorgenti con cui è cercabile: aggiungerne una
+   nuova richiede di toccare `scraper/categories.py` più il filtro OSM o il
+   template di ricerca Google, non il resto della codebase.
 2. **Dashboard privata** (`app/`) — applicazione FastAPI con login che
    permette di lanciare lo scraper, importare i risultati deduplicati nel
    database, gestire la **pipeline commerciale** (contattato → risposto →

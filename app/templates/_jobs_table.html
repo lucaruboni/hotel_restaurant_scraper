@@ -17,17 +17,23 @@
         {% for job in jobs %}
           <tr {% if job.stato in ("in_coda", "in_corso") %}data-job-attivo="1"{% endif %}>
             <td>
-              <div class="cell-name truncate" style="max-width: 260px;">{{ job.localita }}</div>
+              <div class="cell-name truncate" style="max-width: 420px;">{{ job.localita }}</div>
               <div class="subtle">{{ job.categorie.replace(",", " · ") }} · max {{ job.max_results }}</div>
             </td>
             <td class="cell-muted">{{ job.sorgente }}</td>
             <td>
-              {% if job.stato == "in_corso" %}
+              {% if job.stato == "in_corso" and job.annullamento_richiesto %}
+                <span class="badge badge-in_trattativa"><span class="spinner"></span> Arresto in corso…</span>
+              {% elif job.stato == "in_corso" %}
                 <span class="badge badge-contattato"><span class="spinner"></span> In corso</span>
               {% elif job.stato == "in_coda" %}
                 <span class="badge"><span class="dot-live"></span> In coda</span>
+              {% elif job.stato == "completato" and job.errore %}
+                <span class="badge badge-in_trattativa" title="{{ job.errore }}">Completato con avvisi</span>
               {% elif job.stato == "completato" %}
                 <span class="badge badge-chiuso_vinto">Completato</span>
+              {% elif job.stato == "annullato" %}
+                <span class="badge" title="{{ job.errore }}">Annullato</span>
               {% else %}
                 <span class="badge badge-chiuso_perso" title="{{ job.errore }}">Fallito</span>
               {% endif %}
@@ -43,11 +49,27 @@
               {% if job.csv_path %}
                 <a href="/scrape/{{ job.id }}/csv" class="btn btn-sm">CSV</a>
               {% endif %}
+              {% if job.stato in ("in_coda", "in_corso") and not job.annullamento_richiesto %}
+                <form method="post" action="/scrape/{{ job.id }}/annulla" style="display: inline;"
+                      data-conferma="Fermare questa ricerca? I risultati già trovati fino a questo momento verranno comunque salvati.">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn btn-sm btn-ghost">Ferma</button>
+                </form>
+              {% elif job.stato in ("fallito", "annullato") %}
+                <form method="post" action="/scrape/{{ job.id }}/riprova" style="display: inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn btn-sm">Riprova</button>
+                </form>
+              {% endif %}
             </td>
           </tr>
-          {% if job.stato == "fallito" and job.errore %}
+          {% if job.errore %}
             <tr>
-              <td colspan="8" class="subtle" style="color: var(--danger);">⚠ {{ job.errore | truncate(300) }}</td>
+              <td colspan="8" class="subtle"
+                  style="color: {{ 'var(--danger)' if job.stato == 'fallito' else 'var(--warning)' }};
+                         white-space: pre-line;">
+                ⚠ {{ job.errore | truncate(500) }}
+              </td>
             </tr>
           {% endif %}
         {% endfor %}

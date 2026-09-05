@@ -159,8 +159,9 @@ def test_metriche_conteggi_base(db):
 
     m = calcola_metriche(db)
     assert m.totale_lead == 3
-    assert m.hotel == 2
-    assert m.ristoranti == 1
+    conteggi = {slug: n for slug, _, n in m.per_categoria}
+    assert conteggi["hotel"] == 2
+    assert conteggi["ristorante"] == 1
     assert m.contattabili == 2
 
 

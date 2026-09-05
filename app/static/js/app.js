@@ -84,6 +84,25 @@
     });
   });
 
+  // --- Categorie disponibili in base alla sorgente scelta ------------------
+  var selettoreSorgente = document.querySelector("[data-categoria-sorgente]");
+  if (selettoreSorgente) {
+    var caselleCategoria = document.querySelectorAll('input[name="categorie"]');
+
+    var aggiornaCategorie = function () {
+      var sorgente = selettoreSorgente.value;
+      caselleCategoria.forEach(function (casella) {
+        var sorgentiSupportate = (casella.getAttribute("data-sorgenti") || "").split(",");
+        var compatibile = sorgentiSupportate.indexOf(sorgente) !== -1;
+        casella.disabled = !compatibile;
+        if (!compatibile) casella.checked = false;
+      });
+    };
+
+    selettoreSorgente.addEventListener("change", aggiornaCategorie);
+    aggiornaCategorie();
+  }
+
   // --- Submit rapido delle note con Cmd/Ctrl+Invio ------------------------
   document.addEventListener("keydown", function (evento) {
     if ((evento.metaKey || evento.ctrlKey) && evento.key === "Enter") {

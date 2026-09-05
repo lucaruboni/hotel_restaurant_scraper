@@ -147,7 +147,7 @@ class Lead(Base):
     dedup_key: Mapped[str] = mapped_column(String(500), index=True)
 
     # Dati dallo scraper
-    categoria: Mapped[str] = mapped_column(String(20), index=True)
+    categoria: Mapped[str] = mapped_column(String(32), index=True)
     nome: Mapped[str] = mapped_column(String(300))
     indirizzo: Mapped[str] = mapped_column(String(500), default="")
     zona: Mapped[str] = mapped_column(String(200), default="", index=True)
@@ -311,6 +311,7 @@ class ScrapeJob(Base):
     duplicati: Mapped[int] = mapped_column(Integer, default=0)
     errore: Mapped[str] = mapped_column(Text, default="")
     csv_path: Mapped[str] = mapped_column(String(500), default="")
+    annullamento_richiesto: Mapped[bool] = mapped_column(Boolean, default=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -323,6 +324,7 @@ class ScrapeJob(Base):
             "in_corso": "In corso",
             "completato": "Completato",
             "fallito": "Fallito",
+            "annullato": "Annullato",
         }.get(self.stato, self.stato)
 
     @property

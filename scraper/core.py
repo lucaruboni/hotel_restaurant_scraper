@@ -9,12 +9,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
+from .categories import CATEGORIES, CATEGORIE_VALIDE
 from .models import PlaceResult
 from .site_enrichment import enrich_from_website
 
 logger = logging.getLogger(__name__)
 
-CATEGORIE_VALIDE = ("hotel", "ristorante")
 SORGENTI_VALIDE = ("osm", "google")
 
 
@@ -35,11 +35,16 @@ class ScrapeParams:
     def validate(self) -> None:
         if not self.locations:
             raise ValueError("Nessuna località specificata")
+        if self.source not in SORGENTI_VALIDE:
+            raise ValueError(f"Sorgente non valida: {self.source}")
         for categoria in self.categories:
             if categoria not in CATEGORIE_VALIDE:
                 raise ValueError(f"Categoria non valida: {categoria}")
-        if self.source not in SORGENTI_VALIDE:
-            raise ValueError(f"Sorgente non valida: {self.source}")
+            if self.source not in CATEGORIES[categoria].sorgenti:
+                raise ValueError(
+                    f"La categoria '{categoria}' non è disponibile con la sorgente "
+                    f"'{self.source}' (richiede: {', '.join(CATEGORIES[categoria].sorgenti)})"
+                )
 
 
 @dataclass
@@ -50,6 +55,7 @@ class ScrapeCallbacks:
     on_place: Optional[Callable[[PlaceResult], None]] = None
     on_skip: Optional[Callable[[], None]] = None
     on_warning: Optional[Callable[[str], None]] = None
+    on_should_stop: Optional[Callable[[], bool]] = None
 
     def task_start(self, location: str, category: str, total: int) -> None:
         if self.on_task_start:
@@ -66,6 +72,10 @@ class ScrapeCallbacks:
     def warning(self, message: str) -> None:
         if self.on_warning:
             self.on_warning(message)
+
+    def should_stop(self) -> bool:
+        """True se l'utente ha chiesto di fermare la ricerca in corso."""
+        return bool(self.on_should_stop and self.on_should_stop())
 
 
 def parse_locations(raw: str) -> List[str]:
@@ -120,31 +130,44 @@ def _scrape_google(params: ScrapeParams, cb: ScrapeCallbacks) -> List[PlaceResul
     visti = set()
 
     for location in params.locations:
+        if cb.should_stop():
+            return risultati
         for category in params.categories:
+            if cb.should_stop():
+                return risultati
             cb.task_start(location, category, params.max_results)
-            for place in client.search_places(
-                location=location, category=category, max_results=params.max_results
-            ):
-                result = client.parse_place(place, category=category, location=location)
-                chiave = _chiave_risultato(result)
-                if chiave in visti:
-                    cb.skip()
-                    continue
-                visti.add(chiave)
+            try:
+                for place in client.search_places(
+                    location=location, category=category, max_results=params.max_results
+                ):
+                    if cb.should_stop():
+                        return risultati
+                    result = client.parse_place(place, category=category, location=location)
+                    chiave = _chiave_risultato(result)
+                    if chiave in visti:
+                        cb.skip()
+                        continue
+                    visti.add(chiave)
 
-                place_id = place.get("id")
-                if params.reviews and place_id:
-                    try:
-                        dettagli = client.get_details(place_id)
-                        result.reviews = client.parse_reviews(dettagli, max_reviews=params.max_reviews)
-                    except Exception as exc:
-                        cb.warning(f"Recensioni non disponibili per {result.name}: {exc}")
+                    place_id = place.get("id")
+                    if params.reviews and place_id:
+                        try:
+                            dettagli = client.get_details(place_id)
+                            result.reviews = client.parse_reviews(dettagli, max_reviews=params.max_reviews)
+                        except Exception as exc:
+                            cb.warning(f"Recensioni non disponibili per {result.name}: {exc}")
+                        time.sleep(params.sleep)
+
+                    _arricchisci(result, category, params.website_enrichment)
+                    risultati.append(result)
+                    cb.place(result)
                     time.sleep(params.sleep)
-
-                _arricchisci(result, category, params.website_enrichment)
-                risultati.append(result)
-                cb.place(result)
-                time.sleep(params.sleep)
+            except Exception as exc:
+                # Un errore su una categoria (es. tipo Google non valido, quota
+                # esaurita) non deve far perdere i risultati già raccolti per
+                # le altre categorie/località di questo stesso job.
+                cb.warning(f"Categoria '{category}' a {location} non recuperata: {exc}")
+                logger.warning("Ricerca Google fallita per '%s' a %s: %s", category, location, exc)
 
     return risultati
 
@@ -157,6 +180,8 @@ def _scrape_osm(params: ScrapeParams, cb: ScrapeCallbacks) -> List[PlaceResult]:
     visti = set()
 
     for location in params.locations:
+        if cb.should_stop():
+            return risultati
         area = client.geocode_area(location)
         if not area:
             cb.warning(
@@ -166,12 +191,23 @@ def _scrape_osm(params: ScrapeParams, cb: ScrapeCallbacks) -> List[PlaceResult]:
             continue
 
         for category in params.categories:
-            elementi = list(
-                client.search_places(area["area_id"], category, max_results=params.max_results)
-            )
+            if cb.should_stop():
+                return risultati
+            try:
+                elementi = list(
+                    client.search_places(area["area_id"], category, max_results=params.max_results)
+                )
+            except Exception as exc:
+                # Un endpoint Overpass sovraccarico su una categoria non deve
+                # far perdere i risultati già raccolti per le altre.
+                cb.warning(f"Categoria '{category}' a {area['display_name']} non recuperata: {exc}")
+                logger.warning("Ricerca OSM fallita per '%s' a %s: %s", category, location, exc)
+                continue
             cb.task_start(area["display_name"], category, len(elementi))
 
             for elemento in elementi:
+                if cb.should_stop():
+                    return risultati
                 result = client.parse_place(elemento, category=category, location=location)
                 chiave = _chiave_risultato(result)
                 if chiave in visti:

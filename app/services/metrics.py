@@ -13,6 +13,8 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from scraper.categories import CATEGORY_LABELS
+
 from ..models import (
     utcnow,
     CHANNEL_LABELS,
@@ -48,8 +50,6 @@ class CanaleStat:
 @dataclass
 class Metriche:
     totale_lead: int = 0
-    hotel: int = 0
-    ristoranti: int = 0
     contattabili: int = 0
     con_email: int = 0
     con_telefono: int = 0
@@ -67,8 +67,14 @@ class Metriche:
     funnel: list[FaseFunnel] = field(default_factory=list)
     per_status: dict[str, int] = field(default_factory=dict)
     per_zona: list[tuple[str, int]] = field(default_factory=list)
+    per_categoria: list[tuple[str, str, int]] = field(default_factory=list)
     canali: list[CanaleStat] = field(default_factory=list)
     da_ricontattare: list[Lead] = field(default_factory=list)
+
+    @property
+    def top_categorie_hint(self) -> str:
+        """Le due categorie più numerose, per il KPI in cima alla dashboard."""
+        return " · ".join(f"{n} {label.lower()}" for _, label, n in self.per_categoria[:2])
 
     @property
     def tasso_contattabilita(self) -> float:
@@ -103,8 +109,14 @@ def calcola_metriche(db: Session) -> Metriche:
     if m.totale_lead == 0:
         return m
 
-    m.hotel = _conta(db, Lead.categoria == "hotel")
-    m.ristoranti = _conta(db, Lead.categoria == "ristorante")
+    m.per_categoria = [
+        (categoria, CATEGORY_LABELS.get(categoria, categoria), n)
+        for categoria, n in db.execute(
+            select(Lead.categoria, func.count())
+            .group_by(Lead.categoria)
+            .order_by(func.count().desc())
+        ).all()
+    ]
     m.con_email = _conta(db, Lead.email != "")
     m.con_telefono = _conta(db, Lead.telefono != "")
     m.contattabili = _conta(db, (Lead.email != "") | (Lead.telefono != ""))

@@ -9,6 +9,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from scraper.core import ScrapeCallbacks, ScrapeParams, scrape
@@ -47,6 +48,36 @@ def crea_job(
     return job
 
 
+def recupera_job_interrotti() -> int:
+    """Da chiamare all'avvio del processo: un job 'in_coda' o 'in_corso'
+    trovato a questo punto non può essere reale, perché il thread che lo
+    eseguiva viveva nel processo precedente (riavvio, crash, deploy) ed è
+    morto con lui. Senza questo passo il job resterebbe bloccato per sempre
+    con un badge che nessuno aggiornerà più, e il pulsante "Ferma" non
+    avrebbe nessun thread ad ascoltarlo. Restituisce quanti job ha corretto.
+    """
+    db = SessionLocal()
+    try:
+        pendenti = list(
+            db.execute(
+                select(ScrapeJob).where(ScrapeJob.stato.in_(("in_coda", "in_corso")))
+            ).scalars()
+        )
+        for job in pendenti:
+            job.stato = "fallito"
+            job.errore = (
+                "Interrotto da un riavvio del server prima del completamento. "
+                "I risultati raccolti fino a quel momento non sono stati importati: rilancia la ricerca."
+            )
+            job.finished_at = utcnow()
+        if pendenti:
+            db.commit()
+            logger.warning("%s job risultavano ancora in corso all'avvio: segnati come falliti", len(pendenti))
+        return len(pendenti)
+    finally:
+        db.close()
+
+
 def avvia_job(job_id: int) -> threading.Thread:
     """Lancia il job in un thread demone e restituisce il thread (utile nei test)."""
     thread = threading.Thread(target=esegui_job, args=(job_id,), daemon=True)
@@ -78,6 +109,8 @@ def esegui_job(job_id: int) -> None:
         )
 
         trovati = {"n": 0}
+        avvisi: list[str] = []
+        fermato = {"si": False}
 
         def on_place(_result):
             trovati["n"] += 1
@@ -86,7 +119,27 @@ def esegui_job(job_id: int) -> None:
                 job.trovati = trovati["n"]
                 db.commit()
 
-        risultati = scrape(params, ScrapeCallbacks(on_place=on_place))
+        def on_warning(messaggio: str):
+            avvisi.append(messaggio)
+            logger.warning("Job %s: %s", job_id, messaggio)
+
+        def dovrebbe_fermarsi() -> bool:
+            # Legge la richiesta di stop da un'altra sessione (la richiesta
+            # HTTP che ha premuto "Ferma"): una semplice SELECT, non passa
+            # dall'identity map, quindi vede sempre il valore committato.
+            if fermato["si"]:
+                return True
+            richiesto = db.execute(
+                select(ScrapeJob.annullamento_richiesto).where(ScrapeJob.id == job_id)
+            ).scalar_one_or_none()
+            if richiesto:
+                fermato["si"] = True
+            return bool(richiesto)
+
+        risultati = scrape(
+            params,
+            ScrapeCallbacks(on_place=on_place, on_warning=on_warning, on_should_stop=dovrebbe_fermarsi),
+        )
 
         job.trovati = len(risultati)
         db.commit()
@@ -98,10 +151,17 @@ def esegui_job(job_id: int) -> None:
         if nuovi:
             job.csv_path = _salva_csv(job, nuovi)
 
-        job.stato = "completato"
+        job.stato = "annullato" if fermato["si"] else "completato"
+        # Una categoria o una zona rifiutata durante il job non lo fa fallire
+        # (le altre potrebbero essere andate a buon fine): l'avviso resta
+        # comunque visibile, riusando lo stesso campo mostrato sui job falliti.
+        if avvisi:
+            job.errore = "\n".join(avvisi)[:2000]
         job.finished_at = utcnow()
         db.commit()
-        logger.info("Job %s completato: %s nuovi, %s duplicati", job_id, job.nuovi, duplicati)
+        logger.info(
+            "Job %s %s: %s nuovi, %s duplicati", job_id, job.stato, job.nuovi, duplicati
+        )
 
     except Exception as exc:
         logger.exception("Job %s fallito", job_id)

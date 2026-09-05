@@ -21,8 +21,8 @@
     <div class="empty">
       <div class="empty-icon">🏨</div>
       <h3>Nessun potenziale cliente in archivio</h3>
-      <p class="muted">Avvia la prima ricerca: trova hotel e ristoranti per località<br>
-        e importali automaticamente, senza duplicati.</p>
+      <p class="muted">Avvia la prima ricerca: trova hotel, ristoranti, professionisti o<br>
+        potenziali clienti e-commerce per località, importati senza duplicati.</p>
       <a href="/scrape" class="btn btn-primary mt-4">Avvia la prima ricerca</a>
     </div>
   </div>
@@ -33,7 +33,7 @@
     <div class="card kpi">
       <div class="kpi-label">Potenziali clienti</div>
       <div class="kpi-value">{{ m.totale_lead }}</div>
-      <div class="kpi-hint">{{ m.hotel }} hotel · {{ m.ristoranti }} ristoranti</div>
+      <div class="kpi-hint">{{ m.top_categorie_hint }}</div>
     </div>
     <div class="card kpi kpi-accent">
       <div class="kpi-label">Contattabili</div>
@@ -170,6 +170,29 @@
           {% endif %}
         </div>
       </section>
+
+      <!-- Copertura per categoria -->
+      {% if m.per_categoria %}
+      <section class="card">
+        <div class="card-header"><h2>Copertura per categoria</h2></div>
+        <div class="card-body">
+          <div class="bars">
+            {% set massimo_cat = m.per_categoria[0][2] %}
+            {% for slug, etichetta, n in m.per_categoria %}
+              <div>
+                <div class="bar-label">
+                  <a href="/leads?categoria={{ slug }}" class="truncate">{{ etichetta }}</a>
+                  <span class="muted">{{ n }}</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width: {{ '%.1f'|format(n / massimo_cat * 100) }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+      {% endif %}
 
       <!-- Copertura per zona -->
       {% if m.per_zona %}

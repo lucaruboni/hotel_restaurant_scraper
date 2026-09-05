@@ -15,6 +15,7 @@ from .deps import RedirectToLogin, get_session_data
 from .middleware import CSRFMiddleware
 from .models import User
 from .routers import auth, dashboard, leads, notes, scrape
+from .services.scrape_runner import recupera_job_interrotti
 from .templating import render
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -40,6 +41,9 @@ CSP = (
 async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database pronto (%s)", settings.database_url)
+    recuperati = recupera_job_interrotti()
+    if recuperati:
+        logger.warning("%s job interrotti dal riavvio precedente sono stati segnati come falliti", recuperati)
     yield
 
 

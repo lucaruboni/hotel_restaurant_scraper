@@ -11,6 +11,7 @@ import sys
 import time
 
 from . import ui
+from .categories import CATEGORIE_VALIDE
 from .core import ScrapeCallbacks, ScrapeParams, parse_categories, parse_locations, scrape
 from .exporter import export_csv, export_json
 
@@ -32,7 +33,9 @@ def parse_args():
     parser.add_argument(
         "--types",
         default="hotel,ristorante",
-        help="Categorie da cercare separate da virgola: hotel,ristorante (default: entrambe)",
+        help="Categorie da cercare separate da virgola (default: hotel,ristorante). "
+        f"Valori possibili: {', '.join(CATEGORIE_VALIDE)}. Non tutte sono disponibili "
+        "con tutte le sorgenti: vedi scraper/categories.py.",
     )
     parser.add_argument(
         "--source",

@@ -39,11 +39,27 @@ PRICE_LEVEL_MAP = {
 CATEGORY_QUERY_TEMPLATES = {
     "hotel": "hotel a {location}",
     "ristorante": "ristorante a {location}",
+    "fotografo": "fotografo professionista a {location}",
+    "social_media_manager": "social media manager freelance a {location}",
+    "avvocato": "studio legale avvocato a {location}",
+    "commercialista": "studio commercialista a {location}",
+    "architetto": "studio di architettura a {location}",
+    "geometra": "studio tecnico geometra a {location}",
 }
 
+# Tipo Google Places (New) da includere nella ricerca, dove esiste un tipo
+# ufficiale corrispondente (tabella: https://developers.google.com/maps/
+# documentation/places/web-service/supported_types#table1). Un includedType
+# non esistente fa fallire l'intera richiesta con 400 INVALID_ARGUMENT, non
+# solo quella categoria: verificato dal vivo che "architect" NON è un tipo
+# valido (a differenza di "lawyer" e "accounting"). Le professioni senza un
+# tipo dedicato (fotografo, social media manager, architetto, geometra)
+# cercano con il solo testo, senza `includedType`.
 CATEGORY_INCLUDED_TYPE = {
     "hotel": "lodging",
     "ristorante": "restaurant",
+    "avvocato": "lawyer",
+    "commercialista": "accounting",
 }
 
 
@@ -72,17 +88,20 @@ class GooglePlacesClient:
         language_code: str = "it",
         region_code: str = "IT",
     ) -> Iterator[dict]:
-        """Ricerca luoghi per categoria ('hotel' o 'ristorante') in una zona italiana.
-        Effettua la paginazione automatica fino a max_results (max 20 per pagina, API-side).
+        """Ricerca luoghi per categoria (vedi `scraper.categories.CATEGORIES`) in una
+        zona italiana. Effettua la paginazione automatica fino a max_results (max 20
+        per pagina, API-side).
         """
         query = CATEGORY_QUERY_TEMPLATES[category].format(location=location)
         body = {
             "textQuery": query,
             "languageCode": language_code,
             "regionCode": region_code,
-            "includedType": CATEGORY_INCLUDED_TYPE[category],
             "pageSize": min(20, max_results),
         }
+        included_type = CATEGORY_INCLUDED_TYPE.get(category)
+        if included_type:
+            body["includedType"] = included_type
 
         fetched = 0
         page_token = None

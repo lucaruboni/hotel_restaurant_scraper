@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block titolo %}Ricerca strutture — HoReCa Leads{% endblock %}
 {% block intestazione %}Ricerca strutture{% endblock %}
-{% block sottotitolo %}Trova hotel e ristoranti per località: i risultati entrano in archivio già deduplicati{% endblock %}
+{% block sottotitolo %}Trova hotel, ristoranti, professionisti e potenziali clienti e-commerce per località: i risultati entrano in archivio già deduplicati{% endblock %}
 
 {% block contenuto %}
 <div class="grid grid-main">
@@ -19,22 +19,10 @@
             <span class="hint">Comuni, province o regioni. Più zone insieme separate da virgola.</span>
           </div>
 
-          <div class="field">
-            <label>Categorie</label>
-            <div class="row">
-              <label class="checkbox">
-                <input type="checkbox" name="categorie" value="hotel" checked> Hotel
-              </label>
-              <label class="checkbox">
-                <input type="checkbox" name="categorie" value="ristorante" checked> Ristoranti
-              </label>
-            </div>
-          </div>
-
           <div class="field-row">
             <div class="field">
               <label for="sorgente">Sorgente dati</label>
-              <select id="sorgente" name="sorgente">
+              <select id="sorgente" name="sorgente" data-categoria-sorgente>
                 <option value="osm">OpenStreetMap — gratis, nessuna chiave</option>
                 <option value="google" {% if not google_disponibile %}disabled{% endif %}>
                   Google Places — più completo{% if not google_disponibile %} (chiave non configurata){% endif %}
@@ -49,6 +37,29 @@
               <input type="number" id="max_results" name="max_results" value="40"
                      min="1" max="{{ max_results_cap }}">
             </div>
+          </div>
+
+          <div class="field">
+            <label>Categorie</label>
+            <span class="hint">
+              Tre profili di ricerca pensati per tre segmenti commerciali diversi. Le caselle
+              non disponibili per la sorgente scelta sopra si disattivano da sole.
+            </span>
+            {% for blocco in gruppi_categorie %}
+              <div class="categoria-gruppo" data-gruppo="{{ blocco.gruppo }}">
+                <div class="categoria-gruppo-titolo">{{ blocco.titolo }}</div>
+                <div class="row">
+                  {% for cat in blocco.categorie %}
+                    <label class="checkbox">
+                      <input type="checkbox" name="categorie" value="{{ cat.slug }}"
+                             data-sorgenti="{{ cat.sorgenti | join(',') }}"
+                             {% if cat.slug in ("hotel", "ristorante") %}checked{% endif %}>
+                      {{ cat.label }}
+                    </label>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
           </div>
 
           <div class="field">
@@ -70,31 +81,21 @@
         </form>
       </div>
     </section>
-
-    <section class="card">
-      <div class="card-header">
-        <h2>Ricerche eseguite</h2>
-        <span class="subtle">i duplicati non vengono reimportati</span>
-      </div>
-      <div id="jobs-live">
-        {% include "_jobs_table.html" %}
-      </div>
-    </section>
   </div>
 
   <div class="stack">
     <section class="card">
       <div class="card-header"><h2>Come funziona</h2></div>
       <div class="card-body" style="font-size: 13.5px;">
-        <p><strong>1. Ricerca.</strong> Lo scraper cerca hotel e ristoranti nelle località indicate
-          e ne raccoglie nome, indirizzo, telefono, sito, valutazioni.</p>
+        <p><strong>1. Ricerca.</strong> Lo scraper cerca le categorie selezionate nelle località
+          indicate e ne raccoglie nome, indirizzo, telefono, sito, valutazioni.</p>
         <p><strong>2. Arricchimento.</strong> Per ogni struttura con un sito web, visita la homepage
           e la pagina contatti per trovare email e profili social.</p>
         <p><strong>3. Deduplica.</strong> Prima di salvare, ogni struttura viene confrontata con
           l'archivio per dominio del sito, telefono e nome+indirizzo. Le già presenti non vengono
           duplicate: i loro campi vuoti vengono completati con i nuovi dati.</p>
         <p style="margin-bottom:0;"><strong>4. CSV.</strong> Ogni ricerca produce un CSV con i soli
-          lead nuovi, scaricabile dalla tabella qui a fianco.</p>
+          lead nuovi, scaricabile dalla tabella "Ricerche eseguite" qui sotto.</p>
       </div>
     </section>
 
@@ -109,4 +110,14 @@
     </section>
   </div>
 </div>
+
+<section class="card mt-4">
+  <div class="card-header">
+    <h2>Ricerche eseguite</h2>
+    <span class="subtle">i duplicati non vengono reimportati</span>
+  </div>
+  <div id="jobs-live">
+    {% include "_jobs_table.html" %}
+  </div>
+</section>
 {% endblock %}

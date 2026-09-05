@@ -7,6 +7,8 @@ from typing import Optional
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
+from scraper.categories import CATEGORY_GROUP, CATEGORY_LABELS, GRUPPI
+
 from .models import CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, LeadStatus
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -58,6 +60,9 @@ templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 templates.env.globals["CHANNEL_LABELS"] = CHANNEL_LABELS
 templates.env.globals["OUTCOME_LABELS"] = OUTCOME_LABELS
 templates.env.globals["LeadStatus"] = LeadStatus
+templates.env.globals["CATEGORY_LABELS"] = CATEGORY_LABELS
+templates.env.globals["CATEGORY_GROUP"] = CATEGORY_GROUP
+templates.env.globals["GRUPPI_CATEGORIE"] = GRUPPI
 
 
 def render(request: Request, template: str, contesto: dict | None = None, **kwargs):

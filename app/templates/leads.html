@@ -36,8 +36,9 @@
           <label for="categoria">Categoria</label>
           <select id="categoria" name="categoria">
             <option value="">Tutte</option>
-            <option value="hotel" {% if filtri.categoria == 'hotel' %}selected{% endif %}>Hotel</option>
-            <option value="ristorante" {% if filtri.categoria == 'ristorante' %}selected{% endif %}>Ristoranti</option>
+            {% for slug, etichetta in CATEGORY_LABELS.items() %}
+              <option value="{{ slug }}" {% if filtri.categoria == slug %}selected{% endif %}>{{ etichetta }}</option>
+            {% endfor %}
           </select>
         </div>
         <div class="field">
@@ -95,7 +96,9 @@
               <td>
                 <a href="/leads/{{ lead.id }}" class="cell-name">{{ lead.nome }}</a>
                 <div class="subtle">
-                  <span class="badge badge-{{ lead.categoria }}">{{ lead.categoria }}</span>
+                  <span class="badge badge-{{ CATEGORY_GROUP.get(lead.categoria, '') }}">
+                    {{ CATEGORY_LABELS.get(lead.categoria, lead.categoria) }}
+                  </span>
                   {% if lead.stelle %}<span class="nowrap">★ {{ lead.stelle }}</span>{% endif %}
                   {% if lead.indirizzo %}· {{ lead.indirizzo | truncate(46) }}{% endif %}
                 </div>
@@ -129,10 +132,10 @@
         <span class="subtle">Pagina {{ pagina_num }} di {{ pagine_totali }}</span>
         <div class="row">
           {% if pagina_num > 1 %}
-            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else '' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num - 1 }}">← Precedente</a>
+            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num - 1 }}">← Precedente</a>
           {% endif %}
           {% if pagina_num < pagine_totali %}
-            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else '' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num + 1 }}">Successiva →</a>
+            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num + 1 }}">Successiva →</a>
           {% endif %}
         </div>
       </div>
