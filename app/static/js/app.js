@@ -1,46 +1,9 @@
-/* Interazioni leggere: tema, polling job, conferme, autosize textarea.
-   Nessuna dipendenza esterna: la CSP consente solo script self. */
+/* Interazioni leggere: polling job, conferme, autosize textarea.
+   Nessuna dipendenza esterna: la CSP consente solo script self.
+   Palette fissa (vedi app.css): niente switch chiaro/scuro, è deciso. */
 
 (function () {
   "use strict";
-
-  // --- Tema chiaro/scuro, memorizzato sul dispositivo ---------------------
-  var STORAGE_KEY = "horeca-theme";
-
-  function applicaTema(tema) {
-    if (tema === "light" || tema === "dark") {
-      document.documentElement.setAttribute("data-theme", tema);
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-    }
-  }
-
-  function temaSalvato() {
-    try {
-      return localStorage.getItem(STORAGE_KEY);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  applicaTema(temaSalvato());
-
-  document.addEventListener("click", function (evento) {
-    var toggle = evento.target.closest("[data-theme-toggle]");
-    if (!toggle) return;
-
-    var corrente = document.documentElement.getAttribute("data-theme");
-    var scuroDiSistema = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (!corrente) corrente = scuroDiSistema ? "dark" : "light";
-    var nuovo = corrente === "dark" ? "light" : "dark";
-
-    applicaTema(nuovo);
-    try {
-      localStorage.setItem(STORAGE_KEY, nuovo);
-    } catch (e) {
-      /* modalità privata: il tema resta valido per questa sessione */
-    }
-  });
 
   // --- Conferme per le azioni distruttive ---------------------------------
   document.addEventListener("submit", function (evento) {

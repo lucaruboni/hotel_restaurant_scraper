@@ -7,15 +7,6 @@
   <title>{% block titolo %}HoReCa Leads{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏨</text></svg>">
-  <script>
-    // Applica il tema prima del primo paint: niente flash di tema sbagliato.
-    (function () {
-      try {
-        var t = localStorage.getItem("horeca-theme");
-        if (t) document.documentElement.setAttribute("data-theme", t);
-      } catch (e) {}
-    })();
-  </script>
 </head>
 <body>
 <div class="layout">
@@ -33,7 +24,7 @@
         </svg>
         <span>Dashboard</span>
       </a>
-      <a href="/leads" class="nav-link {% if pagina == 'leads' %}active{% endif %}">
+      <a href="/leads?contattabili=true" class="nav-link {% if pagina == 'leads' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
           <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -68,12 +59,6 @@
       </div>
       <div class="topbar-actions">
         {% block azioni %}{% endblock %}
-        <button type="button" class="btn btn-icon btn-ghost" data-theme-toggle
-                aria-label="Cambia tema chiaro/scuro" title="Cambia tema">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-        </button>
       </div>
     </header>
 

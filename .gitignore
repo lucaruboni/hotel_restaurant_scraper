@@ -10,3 +10,6 @@ output/
 data/
 *.db
 .pytest_cache/
+
+# Export temporanei di lead (dati reali, mai nel repo)
+lead_export*.json
