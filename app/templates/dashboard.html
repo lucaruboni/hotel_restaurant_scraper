@@ -148,6 +148,52 @@
     </div>
 
     <div class="stack">
+      <!-- Routine di oggi -->
+      <section class="card">
+        <div class="card-header">
+          <h2>Routine di oggi</h2>
+          <span class="subtle">stesso ordine per tutti e due</span>
+        </div>
+        <div class="card-body">
+          <ul class="routine-list">
+            <li>
+              <a href="/leads?status=risposto">Rispondi a chi ti ha scritto</a>
+              <span class="badge {% if m.per_status.get('Ha risposto') %}badge-in_trattativa{% endif %}">
+                {{ m.per_status.get('Ha risposto', 0) }}
+              </span>
+            </li>
+            <li>
+              <a href="/leads?ordina=prossima_azione">Richiama chi hai promesso di richiamare</a>
+              <span class="badge {% if m.da_ricontattare_totale %}badge-in_trattativa{% endif %}">
+                {{ m.da_ricontattare_totale }}
+              </span>
+            </li>
+            <li>
+              <a href="/leads?status=incontro_fissato">Prepara gli incontri fissati</a>
+              <span class="badge {% if m.incontri_fissati %}badge-in_trattativa{% endif %}">
+                {{ m.incontri_fissati }}
+              </span>
+            </li>
+            <li>
+              <a href="/leads?status=nuovo&contattabili=true">Contatta i nuovi lead con email o telefono</a>
+              <span class="badge {% if m.nuovi_da_contattare %}badge-in_trattativa{% endif %}">
+                {{ m.nuovi_da_contattare }}
+              </span>
+            </li>
+            <li>
+              <a href="/leads?status=in_trattativa">Spingi le trattative aperte verso la chiusura</a>
+              <span class="badge {% if m.in_trattativa %}badge-in_trattativa{% endif %}">
+                {{ m.in_trattativa }}
+              </span>
+            </li>
+          </ul>
+          <p class="subtle mt-4" style="margin-bottom:0;">
+            Dopo ogni chiamata o messaggio registra subito l'esito nella scheda del cliente:
+            è quello che permette a chi di voi due lo risente dopo di ripartire da dove hai lasciato tu.
+          </p>
+        </div>
+      </section>
+
       <!-- Da ricontattare -->
       <section class="card">
         <div class="card-header"><h2>Da ricontattare</h2></div>

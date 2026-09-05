@@ -5,16 +5,21 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, Response
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import ContactChannel, InteractionOutcome, Lead, LeadStatus, User
 from ..services.leads import (
+    SEGMENTI_LEAD,
     aggiorna_status,
     cerca_leads,
+    conta_segmenti,
+    href_segmento,
     leads_to_csv,
     registra_interazione,
+    segmento_corrente,
     zone_disponibili,
 )
 from ..templating import render
@@ -24,11 +29,20 @@ router = APIRouter(prefix="/leads")
 PER_PAGINA = 50
 
 
-def _bool_da_query(contattabili: str = Query("")) -> bool:
-    """Booleano tollerante: un link con `contattabili=` vuoto (es. "pagina
-    successiva" salvata prima che il filtro venisse valorizzato) non deve far
-    fallire la richiesta con un 422 — vale semplicemente "false"."""
-    return contattabili.strip().lower() in ("true", "1", "on", "si")
+def _campo_bool_tollerante(nome: str):
+    """Fabbrica di dependency booleane tolleranti a stringa vuota: un link
+    con `<nome>=` vuoto (es. "pagina successiva" salvata prima che il filtro
+    venisse valorizzato) non deve far fallire la richiesta con un 422 — vale
+    semplicemente "false"."""
+
+    def dipendenza(valore: str = Query("", alias=nome)) -> bool:
+        return valore.strip().lower() in ("true", "1", "on", "si")
+
+    return dipendenza
+
+
+_contattabili_dep = _campo_bool_tollerante("contattabili")
+_senza_contatto_dep = _campo_bool_tollerante("senza_contatto")
 
 
 def _get_lead(db: Session, lead_id: int) -> Lead:
@@ -59,18 +73,26 @@ def elenco(
     status: str = Query(""),
     categoria: str = Query(""),
     zona: str = Query(""),
-    contattabili: bool = Depends(_bool_da_query),
+    contattabili: bool = Depends(_contattabili_dep),
+    senza_contatto: bool = Depends(_senza_contatto_dep),
     ordina: str = Query("recenti"),
     pagina: int = Query(1, ge=1),
 ):
     filtri = dict(
         q=q, status=status, categoria=categoria, zona=zona,
-        solo_contattabili=contattabili, ordina=ordina,
+        solo_contattabili=contattabili, senza_contatto=senza_contatto, ordina=ordina,
     )
     tutti = cerca_leads(db, **filtri)
     totale = len(tutti)
     inizio = (pagina - 1) * PER_PAGINA
     risultati = tutti[inizio : inizio + PER_PAGINA]
+
+    conteggi = conta_segmenti(db)
+    totale_generale = db.execute(select(func.count()).select_from(Lead)).scalar_one()
+    segmenti_nav = [
+        {"slug": slug, "etichetta": etichetta, "href": href_segmento(slug), "conteggio": conteggi[slug]}
+        for slug, (etichetta, _stati) in SEGMENTI_LEAD.items()
+    ]
 
     return render(
         request,
@@ -78,11 +100,14 @@ def elenco(
         {
             "leads": risultati,
             "totale": totale,
+            "totale_generale": totale_generale,
             "pagina": "leads",
             "pagina_num": pagina,
             "pagine_totali": max(1, (totale + PER_PAGINA - 1) // PER_PAGINA),
-            "filtri": {**filtri, "contattabili": contattabili},
+            "filtri": {**filtri, "contattabili": contattabili, "senza_contatto": senza_contatto},
             "zone": zone_disponibili(db),
+            "segmenti_nav": segmenti_nav,
+            "segmento_attivo": segmento_corrente(filtri),
         },
     )
 
@@ -95,13 +120,14 @@ def export_csv(
     status: str = Query(""),
     categoria: str = Query(""),
     zona: str = Query(""),
-    contattabili: bool = Depends(_bool_da_query),
+    contattabili: bool = Depends(_contattabili_dep),
+    senza_contatto: bool = Depends(_senza_contatto_dep),
     ordina: str = Query("recenti"),
 ):
     """Esporta in CSV esattamente i lead filtrati a schermo (già deduplicati)."""
     leads = cerca_leads(
         db, q=q, status=status, categoria=categoria, zona=zona,
-        solo_contattabili=contattabili, ordina=ordina,
+        solo_contattabili=contattabili, senza_contatto=senza_contatto, ordina=ordina,
     )
     contenuto = leads_to_csv(leads)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")

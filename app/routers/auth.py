@@ -21,7 +21,7 @@ from ..templating import render
 
 router = APIRouter()
 
-MSG_CREDENZIALI = "Email o password non corretti."
+MSG_CREDENZIALI = "Nickname o password non corretti."
 MSG_BLOCCATO = "Troppi tentativi falliti. Riprova fra qualche minuto."
 
 
@@ -40,24 +40,24 @@ def pagina_login(request: Request):
 @router.post("/login")
 def esegui_login(
     request: Request,
-    email: str = Form(...),
+    username: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
     ip = _client_ip(request)
-    email_norm = email.strip().lower()
+    username_norm = username.strip().lower()
 
-    if login_rate_limited(ip, email_norm):
+    if login_rate_limited(ip, username_norm):
         return render(request, "login.html", {"errore": MSG_BLOCCATO}, status_code=429)
 
-    utente = db.execute(select(User).where(User.email == email_norm)).scalar_one_or_none()
+    utente = db.execute(select(User).where(User.username == username_norm)).scalar_one_or_none()
 
     # Messaggio identico per utente inesistente e password errata: nessuna enumerazione.
     if not utente or not utente.is_active or not verify_password(password, utente.password_hash):
-        register_failed_login(ip, email_norm)
+        register_failed_login(ip, username_norm)
         return render(request, "login.html", {"errore": MSG_CREDENZIALI}, status_code=401)
 
-    reset_login_attempts(ip, email_norm)
+    reset_login_attempts(ip, username_norm)
     utente.last_login_at = utcnow()
     db.commit()
 

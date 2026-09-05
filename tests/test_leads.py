@@ -157,6 +157,76 @@ def test_filtro_solo_contattabili(db):
     assert len(cerca_leads(db, solo_contattabili=True)) == 1
 
 
+def test_filtro_senza_contatto(db):
+    crea_lead(db, nome="Con contatti", sito_web="https://con.it")
+    crea_lead(db, nome="Senza contatti", sito_web="https://senza.it", email="", telefono="")
+    risultati = cerca_leads(db, senza_contatto=True)
+    assert [r.nome for r in risultati] == ["Senza contatti"]
+
+
+def test_filtro_status_multiplo(db):
+    from app.models import LeadStatus
+
+    a = crea_lead(db, nome="A", sito_web="https://a.it")
+    b = crea_lead(db, nome="B", sito_web="https://b.it")
+    c = crea_lead(db, nome="C", sito_web="https://c.it")
+    a.status = LeadStatus.INCONTRO_FISSATO.value
+    b.status = LeadStatus.IN_TRATTATIVA.value
+    c.status = LeadStatus.CHIUSO_VINTO.value
+    db.commit()
+
+    risultati = cerca_leads(db, status="incontro_fissato,incontro_fatto,in_trattativa")
+    assert {r.nome for r in risultati} == {"A", "B"}
+
+
+def test_conta_segmenti(db):
+    from app.models import LeadStatus
+    from app.services.leads import conta_segmenti
+
+    con = crea_lead(db, nome="Con contatti", sito_web="https://con.it")
+    senza = crea_lead(db, nome="Senza contatti", sito_web="https://senza.it", email="", telefono="")
+    senza.status = LeadStatus.CHIUSO_PERSO.value
+    db.commit()
+
+    conteggi = conta_segmenti(db)
+    assert conteggi["con_contatto"] == 1
+    assert conteggi["senza_contatto"] == 1
+    assert conteggi["chiusi_persi"] == 1
+    assert conteggi["chiusi_vinti"] == 0
+
+
+def test_segmento_corrente(db):
+    from app.services.leads import segmento_corrente
+
+    assert segmento_corrente({"q": "", "status": "", "categoria": "", "zona": "",
+                               "solo_contattabili": False, "senza_contatto": False,
+                               "ordina": "recenti"}) == "tutti"
+    assert segmento_corrente({"q": "", "status": "", "categoria": "", "zona": "",
+                               "solo_contattabili": True, "senza_contatto": False,
+                               "ordina": "recenti"}) == "con_contatto"
+    assert segmento_corrente({"q": "", "status": "chiuso_vinto", "categoria": "", "zona": "",
+                               "solo_contattabili": False, "senza_contatto": False,
+                               "ordina": "recenti"}) == "chiusi_vinti"
+    assert segmento_corrente({"q": "hotel", "status": "", "categoria": "", "zona": "",
+                               "solo_contattabili": True, "senza_contatto": False,
+                               "ordina": "recenti"}) == ""  # combinazione personalizzata
+
+
+def test_pagina_leads_mostra_il_sottomenu_segmenti(client_auth, db):
+    from app.models import LeadStatus
+
+    crea_lead(db, nome="Vinto").status = LeadStatus.CHIUSO_VINTO.value
+    db.commit()
+
+    risposta = client_auth.get("/leads")
+    for etichetta in ("Con contatto", "Senza contatto", "Contattati", "In trattativa", "Chiusi persi", "Chiusi vinti"):
+        assert etichetta in risposta.text
+
+    solo_vinti = client_auth.get("/leads?status=chiuso_vinto")
+    assert "Vinto" in solo_vinti.text
+    assert 'class="nav-link active"' in solo_vinti.text or "nav-link active" in solo_vinti.text
+
+
 def test_ricerca_testuale(db):
     crea_lead(db, nome="Hotel Splendido", sito_web="https://splendido.it")
     crea_lead(db, nome="Trattoria Rossa", sito_web="https://rossa.it")
@@ -207,3 +277,47 @@ def test_badge_categoria_usa_il_gruppo_e_l_etichetta(client_auth, db):
     risposta = client_auth.get("/leads")
     assert "badge-professionisti" in risposta.text
     assert "Studi legali" in risposta.text
+
+
+def test_testo_lead_per_claude_include_i_dati_di_contatto(db):
+    from app.templating import testo_lead_per_claude
+    from tests.conftest import crea_lead
+
+    lead = crea_lead(db, nome="Hotel Prova", telefono="0541 123456", email="info@prova.it")
+    testo = testo_lead_per_claude(lead, includi_interazioni=False)
+
+    assert "Hotel Prova" in testo
+    assert "0541 123456" in testo
+    assert "info@prova.it" in testo
+    assert "Stato pipeline" in testo
+
+
+def test_pulsante_copia_per_claude_presente_su_elenco_e_scheda(client_auth, db):
+    from tests.conftest import crea_lead
+
+    lead = crea_lead(db, nome="Hotel Copiabile")
+
+    elenco = client_auth.get("/leads")
+    assert "data-copy-text=" in elenco.text
+    assert "Hotel Copiabile" in elenco.text
+
+    scheda = client_auth.get(f"/leads/{lead.id}")
+    assert "data-copy-text=" in scheda.text
+
+
+def test_pulsante_copia_per_claude_su_job_con_csv(client_auth, csrf, db, monkeypatch, utente):
+    from app.services import scrape_runner
+
+    def finti_risultati():
+        from scraper.models import PlaceResult
+        return [PlaceResult(category="hotel", name="Hotel Mock", address="", province_or_region="Riccione")]
+
+    monkeypatch.setattr(scrape_runner, "scrape", lambda params, callbacks=None: finti_risultati())
+    job = scrape_runner.crea_job(
+        db, localita="Riccione", categorie=["hotel"], sorgente="osm",
+        max_results=10, con_recensioni=False, con_arricchimento=False, user_id=utente.id,
+    )
+    scrape_runner.esegui_job(job.id)
+
+    risposta = client_auth.get("/scrape")
+    assert f'data-copy-url="/scrape/{job.id}/csv"' in risposta.text

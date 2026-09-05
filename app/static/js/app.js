@@ -84,6 +84,61 @@
     });
   });
 
+  // --- Copia negli appunti (per incollare in chat con Claude) --------------
+  function mostraEsitoCopia(bottone, testo, msDurata) {
+    var originale = bottone.textContent;
+    bottone.textContent = testo;
+    bottone.disabled = true;
+    setTimeout(function () {
+      bottone.textContent = originale;
+      bottone.disabled = false;
+    }, msDurata || 1600);
+  }
+
+  function copiaTesto(testo, bottone) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(testo).then(
+        function () { mostraEsitoCopia(bottone, "Copiato ✓"); },
+        function () { mostraEsitoCopia(bottone, "Errore"); }
+      );
+      return;
+    }
+    // Fallback per contesti senza Clipboard API (es. pagina non servita in HTTPS).
+    var area = document.createElement("textarea");
+    area.value = testo;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    try {
+      document.execCommand("copy");
+      mostraEsitoCopia(bottone, "Copiato ✓");
+    } catch (e) {
+      mostraEsitoCopia(bottone, "Errore");
+    }
+    document.body.removeChild(area);
+  }
+
+  document.addEventListener("click", function (evento) {
+    var bottone = evento.target.closest("[data-copy-text], [data-copy-url]");
+    if (!bottone) return;
+    evento.preventDefault();
+
+    if (bottone.hasAttribute("data-copy-text")) {
+      copiaTesto(bottone.getAttribute("data-copy-text"), bottone);
+      return;
+    }
+
+    var url = bottone.getAttribute("data-copy-url");
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) {
+        if (!r.ok) throw new Error("richiesta fallita");
+        return r.text();
+      })
+      .then(function (testo) { copiaTesto(testo, bottone); })
+      .catch(function () { mostraEsitoCopia(bottone, "Errore"); });
+  });
+
   // --- Categorie disponibili in base alla sorgente scelta ------------------
   var selettoreSorgente = document.querySelector("[data-categoria-sorgente]");
   if (selettoreSorgente) {

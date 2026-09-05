@@ -48,6 +48,9 @@
             <td class="cell-nowrap">
               {% if job.csv_path %}
                 <a href="/scrape/{{ job.id }}/csv" class="btn btn-sm">CSV</a>
+                <button type="button" class="btn btn-sm btn-ghost"
+                        title="Copia il CSV di questa ricerca per incollarlo in chat con Claude"
+                        data-copy-url="/scrape/{{ job.id }}/csv">Copia per Claude</button>
               {% endif %}
               {% if job.stato in ("in_coda", "in_corso") and not job.annullamento_richiesto %}
                 <form method="post" action="/scrape/{{ job.id }}/annulla" style="display: inline;"

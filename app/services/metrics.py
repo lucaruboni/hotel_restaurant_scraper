@@ -71,6 +71,11 @@ class Metriche:
     canali: list[CanaleStat] = field(default_factory=list)
     da_ricontattare: list[Lead] = field(default_factory=list)
 
+    # --- Routine giornaliera (vedi calcola_routine_oggi) --------------------
+    nuovi_da_contattare: int = 0
+    incontri_fissati: int = 0
+    da_ricontattare_totale: int = 0
+
     @property
     def top_categorie_hint(self) -> str:
         """Le due categorie più numerose, per il KPI in cima alla dashboard."""
@@ -235,14 +240,23 @@ def calcola_metriche(db: Session) -> Metriche:
     )
 
     # Lead con un'azione pianificata scaduta o imminente
+    condizione_da_ricontattare = Lead.prossima_azione_at.is_not(None) & Lead.status.notin_(
+        [LeadStatus.CHIUSO_VINTO.value, LeadStatus.CHIUSO_PERSO.value]
+    )
     m.da_ricontattare = list(
         db.execute(
             select(Lead)
-            .where(Lead.prossima_azione_at.is_not(None))
-            .where(Lead.status.notin_([LeadStatus.CHIUSO_VINTO.value, LeadStatus.CHIUSO_PERSO.value]))
+            .where(condizione_da_ricontattare)
             .order_by(Lead.prossima_azione_at.asc())
             .limit(8)
         ).scalars().all()
     )
+    m.da_ricontattare_totale = _conta(db, condizione_da_ricontattare)
+
+    # Routine giornaliera: cosa fare oggi per restare in linea con il lavoro
+    m.nuovi_da_contattare = _conta(
+        db, (Lead.status == LeadStatus.NUOVO.value) & ((Lead.email != "") | (Lead.telefono != ""))
+    )
+    m.incontri_fissati = conteggi.get(LeadStatus.INCONTRO_FISSATO.value, 0)
 
     return m

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block titolo %}Potenziali clienti — HoReCa Leads{% endblock %}
 {% block intestazione %}Potenziali clienti{% endblock %}
-{% block sottotitolo %}{{ totale }} risultati{% if filtri.q or filtri.status or filtri.categoria or filtri.zona or filtri.contattabili %} con i filtri attivi{% endif %}{% endblock %}
+{% block sottotitolo %}{{ totale }} risultati{% if filtri.q or filtri.status or filtri.categoria or filtri.zona or filtri.contattabili or filtri.senza_contatto %} con i filtri attivi{% endif %}{% endblock %}
 
 {% block azioni %}
-  <a class="btn" href="/leads/export.csv?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&ordina={{ filtri.ordina }}">
+  <a class="btn" href="/leads/export.csv?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&senza_contatto={{ 'true' if filtri.senza_contatto else 'false' }}&ordina={{ filtri.ordina }}">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>
     </svg>
@@ -14,7 +14,25 @@
 {% endblock %}
 
 {% block contenuto %}
-<section class="card mb-4">
+<div class="grid grid-leads">
+  <aside class="stack">
+    <section class="card">
+      <div class="card-header"><h2>Segmenti</h2></div>
+      <nav class="nav subnav">
+        <a href="/leads" class="nav-link {% if segmento_attivo == 'tutti' %}active{% endif %}">
+          <span>Tutti</span><span class="subnav-count">{{ totale_generale }}</span>
+        </a>
+        {% for s in segmenti_nav %}
+          <a href="{{ s.href }}" class="nav-link {% if segmento_attivo == s.slug %}active{% endif %}">
+            <span>{{ s.etichetta }}</span><span class="subnav-count">{{ s.conteggio }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+    </section>
+  </aside>
+
+  <div class="stack">
+<section class="card">
   <div class="card-body">
     <form method="get" action="/leads">
       <div class="field-row">
@@ -62,10 +80,16 @@
         </div>
       </div>
       <div class="row-between">
-        <label class="checkbox">
-          <input type="checkbox" name="contattabili" value="true" {% if filtri.contattabili %}checked{% endif %}>
-          Solo con email o telefono
-        </label>
+        <div class="row">
+          <label class="checkbox">
+            <input type="checkbox" name="contattabili" value="true" {% if filtri.contattabili %}checked{% endif %}>
+            Solo con email o telefono
+          </label>
+          <label class="checkbox">
+            <input type="checkbox" name="senza_contatto" value="true" {% if filtri.senza_contatto %}checked{% endif %}>
+            Solo senza contatti
+          </label>
+        </div>
         <div class="row">
           <a href="/leads" class="btn btn-ghost btn-sm">Azzera filtri</a>
           <button type="submit" class="btn btn-primary btn-sm">Applica</button>
@@ -120,6 +144,8 @@
               <td class="cell-muted cell-nowrap">{{ lead.ultimo_contatto_at | da_quanto }}</td>
               <td class="cell-nowrap">
                 <a href="/leads/{{ lead.id }}/scheda" class="btn btn-sm btn-ghost" title="Scheda note">Note</a>
+                <button type="button" class="btn btn-sm btn-ghost" title="Copia i dati di questo cliente per incollarli in chat con Claude"
+                        data-copy-text="{{ lead | testo_per_claude(includi_interazioni=False) }}">Copia per Claude</button>
               </td>
             </tr>
           {% endfor %}
@@ -132,10 +158,10 @@
         <span class="subtle">Pagina {{ pagina_num }} di {{ pagine_totali }}</span>
         <div class="row">
           {% if pagina_num > 1 %}
-            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num - 1 }}">← Precedente</a>
+            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&senza_contatto={{ 'true' if filtri.senza_contatto else 'false' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num - 1 }}">← Precedente</a>
           {% endif %}
           {% if pagina_num < pagine_totali %}
-            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num + 1 }}">Successiva →</a>
+            <a class="btn btn-sm" href="?q={{ filtri.q | urlencode }}&status={{ filtri.status }}&categoria={{ filtri.categoria }}&zona={{ filtri.zona | urlencode }}&contattabili={{ 'true' if filtri.contattabili else 'false' }}&senza_contatto={{ 'true' if filtri.senza_contatto else 'false' }}&ordina={{ filtri.ordina }}&pagina={{ pagina_num + 1 }}">Successiva →</a>
           {% endif %}
         </div>
       </div>
@@ -149,4 +175,6 @@
     </div>
   {% endif %}
 </section>
+  </div>
+</div>
 {% endblock %}

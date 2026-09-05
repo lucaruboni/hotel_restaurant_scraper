@@ -48,7 +48,7 @@ def db():
 @pytest.fixture
 def utente(db) -> User:
     u = User(
-        email="venditore@esempio.it",
+        username="venditore",
         nome="Venditore",
         password_hash=hash_password(PASSWORD_TEST),
     )
@@ -70,7 +70,7 @@ def client_auth(client, utente):
     """Client con sessione aperta."""
     risposta = client.post(
         "/login",
-        data={"email": utente.email, "password": PASSWORD_TEST},
+        data={"username": utente.username, "password": PASSWORD_TEST},
         follow_redirects=False,
     )
     assert risposta.status_code == 303, "login fallito nella fixture"

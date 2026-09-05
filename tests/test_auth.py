@@ -26,7 +26,7 @@ def test_tutte_le_pagine_protette_richiedono_login(client):
 def test_login_con_credenziali_valide(client, utente):
     risposta = client.post(
         "/login",
-        data={"email": utente.email, "password": PASSWORD_TEST},
+        data={"username": utente.username, "password": PASSWORD_TEST},
         follow_redirects=False,
     )
     assert risposta.status_code == 303
@@ -35,25 +35,25 @@ def test_login_con_credenziali_valide(client, utente):
 
 def test_login_password_errata_rifiutato(client, utente):
     risposta = client.post(
-        "/login", data={"email": utente.email, "password": "sbagliata-xyz"}, follow_redirects=False
+        "/login", data={"username": utente.username, "password": "sbagliata-xyz"}, follow_redirects=False
     )
     assert risposta.status_code == 401
     assert settings.session_cookie not in risposta.cookies
 
 
 def test_login_utente_inesistente_stesso_messaggio(client, utente):
-    """Nessuna enumerazione utenti: stesso messaggio per email ignota e password errata."""
-    ignoto = client.post("/login", data={"email": "nessuno@esempio.it", "password": "qualcosa123"})
-    errata = client.post("/login", data={"email": utente.email, "password": "qualcosa123"})
+    """Nessuna enumerazione utenti: stesso messaggio per nickname ignoto e password errata."""
+    ignoto = client.post("/login", data={"username": "nessuno", "password": "qualcosa123"})
+    errata = client.post("/login", data={"username": utente.username, "password": "qualcosa123"})
     assert ignoto.status_code == errata.status_code == 401
-    assert "Email o password non corretti" in ignoto.text
-    assert "Email o password non corretti" in errata.text
+    assert "Nickname o password non corretti" in ignoto.text
+    assert "Nickname o password non corretti" in errata.text
 
 
 def test_cookie_sessione_httponly(client, utente):
     risposta = client.post(
         "/login",
-        data={"email": utente.email, "password": PASSWORD_TEST},
+        data={"username": utente.username, "password": PASSWORD_TEST},
         follow_redirects=False,
     )
     set_cookie = risposta.headers["set-cookie"]
@@ -124,8 +124,8 @@ def test_rate_limit_login(client, utente):
 
     _login_attempts.clear()
     for _ in range(settings.login_max_attempts):
-        client.post("/login", data={"email": utente.email, "password": "sbagliata"})
+        client.post("/login", data={"username": utente.username, "password": "sbagliata"})
 
-    risposta = client.post("/login", data={"email": utente.email, "password": PASSWORD_TEST})
+    risposta = client.post("/login", data={"username": utente.username, "password": PASSWORD_TEST})
     assert risposta.status_code == 429
     _login_attempts.clear()

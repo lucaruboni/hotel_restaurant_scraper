@@ -188,7 +188,7 @@ pytest -q
 uvicorn app.main:app --reload --port 8000
 
 # Creazione primo utente
-python -m app.cli create-user --email tu@esempio.it --password '...'
+python -m app.cli create-user --username tuonickname --password '...'
 
 # Scraper da CLI
 python -m scraper.main --location "Riccione, Cattolica" --source google --output out.csv

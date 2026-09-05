@@ -42,7 +42,7 @@ docker compose build
 docker compose up dashboard        # http://localhost:8010 (vedi DASHBOARD_PORT in .env)
 
 # primo utente
-docker compose exec dashboard python -m app.cli create-user --email tu@esempio.it
+docker compose exec dashboard python -m app.cli create-user --username tuonickname
 ```
 
 ### Avvio senza Docker
@@ -51,15 +51,18 @@ docker compose exec dashboard python -m app.cli create-user --email tu@esempio.i
 pip install -r requirements.txt
 cp .env.example .env               # imposta SECRET_KEY
 
-python -m app.cli create-user --email tu@esempio.it
+python -m app.cli create-user --username tuonickname
 uvicorn app.main:app --port 8010   # http://localhost:8010
 ```
 
 ### Comandi utili
 
 ```bash
-python -m app.cli create-user --email tu@esempio.it --password '...'
-python -m app.cli set-password --email tu@esempio.it
+python -m app.cli create-user --username tuonickname --password '...'
+python -m app.cli set-password --username tuonickname
+python -m app.cli set-username --username vecchio --nuovo-username nuovo
+python -m app.cli deactivate-user --username tuonickname
+python -m app.cli delete-user --username tuonickname
 python -m app.cli list-users
 pytest -q                          # 65 test
 ```

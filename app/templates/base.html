@@ -50,8 +50,8 @@
 
     <div class="sidebar-footer">
       <div class="user-chip">
-        <span class="avatar">{{ (utente.nome or utente.email)[0] | upper if utente else '?' }}</span>
-        <span class="truncate">{{ utente.nome or utente.email if utente else '' }}</span>
+        <span class="avatar">{{ (utente.nome or utente.username)[0] | upper if utente else '?' }}</span>
+        <span class="truncate">{{ utente.nome or utente.username if utente else '' }}</span>
       </div>
       <form method="post" action="/logout" style="margin-top: 8px;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

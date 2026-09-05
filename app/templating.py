@@ -53,9 +53,48 @@ def euro(valore: Optional[float]) -> str:
     return f"€ {valore:,.0f}".replace(",", ".")
 
 
+def testo_lead_per_claude(lead, includi_interazioni: bool = True) -> str:
+    """Riepilogo testuale di un lead, pensato per essere incollato in chat
+    con Claude (per farsi scrivere un messaggio di contatto, un'analisi, ecc.)."""
+    righe = [
+        f"{lead.nome} ({CATEGORY_LABELS.get(lead.categoria, lead.categoria)})",
+    ]
+    if lead.zona or lead.indirizzo:
+        righe.append(" — ".join(p for p in (lead.zona, lead.indirizzo) if p))
+    if lead.telefono:
+        righe.append(f"Telefono: {lead.telefono}")
+    if lead.email:
+        righe.append(f"Email: {lead.email}")
+    if lead.sito_web:
+        righe.append(f"Sito: {lead.sito_web}")
+    for etichetta, valore in (("Instagram", lead.instagram), ("Facebook", lead.facebook), ("LinkedIn", lead.linkedin)):
+        if valore:
+            righe.append(f"{etichetta}: {valore}")
+    if lead.stelle:
+        righe.append(f"Stelle: {lead.stelle}")
+    if lead.valutazione:
+        extra = f" ({lead.numero_recensioni} recensioni)" if lead.numero_recensioni else ""
+        righe.append(f"Valutazione: {lead.valutazione}{extra}")
+    righe.append(f"Stato pipeline: {STATUS_LABELS.get(lead.status, lead.status)}")
+    if lead.valore_stimato:
+        righe.append(f"Valore stimato: € {lead.valore_stimato:,.0f}".replace(",", "."))
+    if includi_interazioni and getattr(lead, "interazioni", None):
+        righe.append("")
+        righe.append("Ultime interazioni:")
+        for i in lead.interazioni[:5]:
+            quando = formatta_data(i.occurred_at)
+            righe.append(
+                f"- {quando} · {CHANNEL_LABELS.get(i.canale, i.canale)} · "
+                f"{OUTCOME_LABELS.get(i.esito, i.esito)}"
+                + (f" — {i.testo}" if i.testo else "")
+            )
+    return "\n".join(righe)
+
+
 templates.env.filters["data"] = formatta_data
 templates.env.filters["da_quanto"] = da_quanto
 templates.env.filters["euro"] = euro
+templates.env.filters["testo_per_claude"] = testo_lead_per_claude
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 templates.env.globals["CHANNEL_LABELS"] = CHANNEL_LABELS
 templates.env.globals["OUTCOME_LABELS"] = OUTCOME_LABELS

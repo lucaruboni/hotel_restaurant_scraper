@@ -197,3 +197,32 @@ def test_metriche_efficacia_canali(db):
     assert per_canale["email"].risposte == 1
     assert per_canale["email"].tasso_risposta == 50.0
     assert per_canale["telefono"].tasso_risposta == 100.0
+
+
+def test_metriche_routine_giornaliera(db):
+    from datetime import timedelta
+
+    from app.models import utcnow
+
+    nuovo_contattabile = crea_lead(db, nome="Nuovo con contatti", sito_web="https://a.it")
+    crea_lead(db, nome="Nuovo senza contatti", sito_web="https://b.it", email="", telefono="")
+
+    incontro = crea_lead(db, nome="Incontro fissato", sito_web="https://c.it")
+    aggiorna_status(db, incontro, LeadStatus.INCONTRO_FISSATO.value)
+
+    da_richiamare = crea_lead(db, nome="Da richiamare", sito_web="https://d.it")
+    aggiorna_status(db, da_richiamare, LeadStatus.CONTATTATO.value)
+    da_richiamare.prossima_azione_at = utcnow() - timedelta(hours=2)
+    db.commit()
+
+    m = calcola_metriche(db)
+    assert m.nuovi_da_contattare == 1  # solo quello con email/telefono
+    assert m.incontri_fissati == 1
+    assert m.da_ricontattare_totale == 1
+
+
+def test_dashboard_mostra_la_routine_di_oggi(client_auth, db):
+    crea_lead(db, nome="Hotel Routine", sito_web="https://routine.it")
+    risposta = client_auth.get("/")
+    assert "Routine di oggi" in risposta.text
+    assert "Contatta i nuovi lead" in risposta.text

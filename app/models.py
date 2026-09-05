@@ -129,7 +129,14 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    # Nickname di accesso: a differenza dell'email non è deducibile da fuori,
+    # quindi funziona come un secondo fattore informale oltre alla password.
+    # Niente `unique=True` a livello di DB: un database già popolato non
+    # potrebbe applicarlo retroattivamente senza valori da assegnare alle
+    # righe esistenti (vedi `_aggiungi_colonne_mancanti`); l'unicità è
+    # garantita in `app/cli.py` prima dell'inserimento.
+    username: Mapped[str] = mapped_column(String(60), index=True, default="")
+    email: Mapped[str] = mapped_column(String(255), default="")
     nome: Mapped[str] = mapped_column(String(120), default="")
     password_hash: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

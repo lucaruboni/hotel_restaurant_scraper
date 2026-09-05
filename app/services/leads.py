@@ -154,6 +154,25 @@ def _arricchisci_lead(lead: Lead, r) -> None:
         lead.numero_recensioni = r.user_ratings_total
 
 
+#: Segmenti rapidi mostrati nel sotto-menu di "Potenziali clienti": slug ->
+#: (etichetta, stati di pipeline compresi — vuoto per i due basati sul contatto).
+SEGMENTI_LEAD = {
+    "con_contatto": ("Con contatto", ()),
+    "senza_contatto": ("Senza contatto", ()),
+    "contattati": ("Contattati", (LeadStatus.CONTATTATO.value,)),
+    "in_trattativa": (
+        "In trattativa",
+        (
+            LeadStatus.INCONTRO_FISSATO.value,
+            LeadStatus.INCONTRO_FATTO.value,
+            LeadStatus.IN_TRATTATIVA.value,
+        ),
+    ),
+    "chiusi_persi": ("Chiusi persi", (LeadStatus.CHIUSO_PERSO.value,)),
+    "chiusi_vinti": ("Chiusi vinti", (LeadStatus.CHIUSO_VINTO.value,)),
+}
+
+
 def cerca_leads(
     db: Session,
     q: str = "",
@@ -161,11 +180,16 @@ def cerca_leads(
     categoria: str = "",
     zona: str = "",
     solo_contattabili: bool = False,
+    senza_contatto: bool = False,
     ordina: str = "recenti",
     limit: Optional[int] = None,
     offset: int = 0,
 ) -> list[Lead]:
-    """Ricerca filtrata dei lead per la tabella e per l'export."""
+    """Ricerca filtrata dei lead per la tabella e per l'export.
+
+    `status` accetta anche più fasi separate da virgola (usato dal segmento
+    "in trattativa" del sotto-menu, che comprende incontro fissato/fatto).
+    """
     stmt = select(Lead)
 
     if q:
@@ -180,13 +204,16 @@ def cerca_leads(
             )
         )
     if status:
-        stmt = stmt.where(Lead.status == status)
+        stati = [s.strip() for s in status.split(",") if s.strip()]
+        stmt = stmt.where(Lead.status.in_(stati))
     if categoria:
         stmt = stmt.where(Lead.categoria == categoria)
     if zona:
         stmt = stmt.where(Lead.zona == zona)
     if solo_contattabili:
         stmt = stmt.where(or_(Lead.email != "", Lead.telefono != ""))
+    elif senza_contatto:
+        stmt = stmt.where(Lead.email == "", Lead.telefono == "")
 
     ordinamenti = {
         "recenti": Lead.created_at.desc(),
@@ -210,6 +237,60 @@ def conta_leads(db: Session, **filtri) -> int:
 def zone_disponibili(db: Session) -> list[str]:
     righe = db.execute(select(Lead.zona).where(Lead.zona != "").distinct().order_by(Lead.zona)).scalars()
     return list(righe)
+
+
+def href_segmento(slug: str) -> str:
+    """URL del sotto-menu lead per un dato segmento (vedi `SEGMENTI_LEAD`)."""
+    if slug == "con_contatto":
+        return "/leads?contattabili=true"
+    if slug == "senza_contatto":
+        return "/leads?senza_contatto=true"
+    _etichetta, stati = SEGMENTI_LEAD[slug]
+    return "/leads?status=" + ",".join(stati)
+
+
+def segmento_corrente(filtri: dict) -> str:
+    """Slug del segmento del sotto-menu che corrisponde esattamente ai filtri
+    correnti: 'tutti' se non c'è nessun filtro attivo, '' se è una
+    combinazione personalizzata (arrivata dal modulo di ricerca sopra)."""
+    extra_attivi = (
+        bool(filtri.get("q") or filtri.get("categoria") or filtri.get("zona"))
+        or filtri.get("ordina", "recenti") != "recenti"
+    )
+    if extra_attivi:
+        return ""
+
+    status = filtri.get("status", "")
+    contattabili = filtri.get("solo_contattabili")
+    senza_contatto = filtri.get("senza_contatto")
+
+    if not status and not contattabili and not senza_contatto:
+        return "tutti"
+    if contattabili and not status:
+        return "con_contatto"
+    if senza_contatto and not status:
+        return "senza_contatto"
+    for slug, (_etichetta, stati) in SEGMENTI_LEAD.items():
+        if slug in ("con_contatto", "senza_contatto"):
+            continue
+        if status == ",".join(stati):
+            return slug
+    return ""
+
+
+def conta_segmenti(db: Session) -> dict[str, int]:
+    """Conteggio per ciascun segmento rapido del sotto-menu lead."""
+    conteggi: dict[str, int] = {}
+    for slug, (_etichetta, stati) in SEGMENTI_LEAD.items():
+        stmt = select(func.count()).select_from(Lead)
+        if slug == "con_contatto":
+            stmt = stmt.where(or_(Lead.email != "", Lead.telefono != ""))
+        elif slug == "senza_contatto":
+            stmt = stmt.where(Lead.email == "", Lead.telefono == "")
+        else:
+            stmt = stmt.where(Lead.status.in_(stati))
+        conteggi[slug] = db.execute(stmt).scalar_one()
+    return conteggi
 
 
 def registra_interazione(

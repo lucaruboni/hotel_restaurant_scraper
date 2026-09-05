@@ -2,7 +2,9 @@
 {% block titolo %}{{ lead.nome }} — HoReCa Leads{% endblock %}
 {% block intestazione %}{{ lead.nome }}{% endblock %}
 {% block sottotitolo %}
-  <span class="badge badge-{{ lead.categoria }}">{{ lead.categoria }}</span>
+  <span class="badge badge-{{ CATEGORY_GROUP.get(lead.categoria, '') }}">
+    {{ CATEGORY_LABELS.get(lead.categoria, lead.categoria) }}
+  </span>
   {% if lead.stelle %}· ★ {{ lead.stelle }}{% endif %}
   {% if lead.indirizzo %}· {{ lead.indirizzo }}{% endif %}
 {% endblock %}
@@ -14,6 +16,8 @@
     </svg>
     Scheda note
   </a>
+  <button type="button" class="btn btn-ghost" title="Copia i dati di questo cliente per incollarli in chat con Claude"
+          data-copy-text="{{ lead | testo_per_claude }}">Copia per Claude</button>
   <a href="/leads" class="btn btn-ghost">← Elenco</a>
 {% endblock %}
 

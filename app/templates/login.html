@@ -21,10 +21,7 @@
   <div class="login-card">
     <div class="login-brand">
       <span class="brand-mark">H</span>
-      <div>
-        <div style="font-weight: 700; letter-spacing: -0.02em;">HoReCa Leads</div>
-        <div class="subtle">Area riservata</div>
-      </div>
+      <div style="font-weight: 700; letter-spacing: -0.02em;">HoReCa Leads</div>
     </div>
 
     {% if errore %}
@@ -36,9 +33,9 @@
 
     <form method="post" action="/login">
       <div class="field">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required autocomplete="username"
-               autofocus placeholder="tu@esempio.it">
+        <label for="username">Nickname</label>
+        <input type="text" id="username" name="username" required autocomplete="username"
+               autofocus placeholder="il-tuo-nickname">
       </div>
       <div class="field">
         <label for="password">Password</label>
@@ -47,11 +44,6 @@
       </div>
       <button type="submit" class="btn btn-primary" style="width: 100%;">Accedi</button>
     </form>
-
-    <p class="subtle mt-6" style="text-align: center; margin-bottom: 0;">
-      Nessun account? Crealo dal terminale:<br>
-      <code class="mono">python -m app.cli create-user --email ...</code>
-    </p>
   </div>
 </div>
 </body>

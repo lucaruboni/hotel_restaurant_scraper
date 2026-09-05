@@ -4,7 +4,7 @@ Scelte:
 - password con bcrypt (cost di default della libreria, salt per-utente);
 - sessione in cookie firmato (itsdangerous) con scadenza: nessuno stato server;
 - CSRF con token nel cookie di sessione + campo hidden nei form (double submit);
-- rate limit del login in memoria per (IP, email) su finestra scorrevole.
+- rate limit del login in memoria per (IP, username) su finestra scorrevole.
 """
 
 import hmac
@@ -20,7 +20,7 @@ from .config import settings
 
 _serializer = URLSafeTimedSerializer(settings.secret_key, salt="horeca-session")
 
-# (ip, email) -> lista di timestamp dei tentativi falliti
+# (ip, username) -> lista di timestamp dei tentativi falliti
 _login_attempts: dict[tuple[str, str], list[float]] = defaultdict(list)
 
 CSRF_FIELD = "csrf_token"
@@ -68,8 +68,8 @@ def verify_csrf(session_data: Optional[dict], token_inviato: Optional[str]) -> b
 
 # --- Rate limiting login ----------------------------------------------------
 
-def login_rate_limited(ip: str, email: str) -> bool:
-    chiave = (ip, email.lower())
+def login_rate_limited(ip: str, username: str) -> bool:
+    chiave = (ip, username.lower())
     adesso = time.time()
     finestra = settings.login_window_seconds
     tentativi = [t for t in _login_attempts[chiave] if adesso - t < finestra]
@@ -77,9 +77,9 @@ def login_rate_limited(ip: str, email: str) -> bool:
     return len(tentativi) >= settings.login_max_attempts
 
 
-def register_failed_login(ip: str, email: str) -> None:
-    _login_attempts[(ip, email.lower())].append(time.time())
+def register_failed_login(ip: str, username: str) -> None:
+    _login_attempts[(ip, username.lower())].append(time.time())
 
 
-def reset_login_attempts(ip: str, email: str) -> None:
-    _login_attempts.pop((ip, email.lower()), None)
+def reset_login_attempts(ip: str, username: str) -> None:
+    _login_attempts.pop((ip, username.lower()), None)
