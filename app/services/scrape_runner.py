@@ -136,9 +136,16 @@ def esegui_job(job_id: int) -> None:
                 fermato["si"] = True
             return bool(richiesto)
 
+        def on_api_usage(chiamate_ricerca: int, chiamate_dettagli: int):
+            job.google_chiamate_ricerca = chiamate_ricerca
+            job.google_chiamate_dettagli = chiamate_dettagli
+
         risultati = scrape(
             params,
-            ScrapeCallbacks(on_place=on_place, on_warning=on_warning, on_should_stop=dovrebbe_fermarsi),
+            ScrapeCallbacks(
+                on_place=on_place, on_warning=on_warning, on_should_stop=dovrebbe_fermarsi,
+                on_api_usage=on_api_usage,
+            ),
         )
 
         job.trovati = len(risultati)

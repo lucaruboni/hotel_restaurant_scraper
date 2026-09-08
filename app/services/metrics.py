@@ -24,6 +24,7 @@ from ..models import (
     LeadStatus,
     OUTCOME_RISPOSTA,
     STATUS_LABELS,
+    ScrapeJob,
 )
 
 
@@ -260,3 +261,38 @@ def calcola_metriche(db: Session) -> Metriche:
     m.incontri_fissati = conteggi.get(LeadStatus.INCONTRO_FISSATO.value, 0)
 
     return m
+
+
+@dataclass
+class UtilizzoGoogle:
+    ricerca_mese: int = 0
+    dettagli_mese: int = 0
+    ricerca_totale: int = 0
+    dettagli_totale: int = 0
+
+    @property
+    def stima_costo_mese(self) -> float:
+        # Stima puramente indicativa: i prezzi Google Places (New) dipendono
+        # dai campi richiesti (fascia Essentials/Pro/Enterprise) e cambiano
+        # nel tempo. Verifica sempre il listino aggiornato prima di fidarti
+        # di questo numero: https://mapsplatform.google.com/pricing/
+        return self.ricerca_mese * 0.032 + self.dettagli_mese * 0.017
+
+
+def calcola_utilizzo_google(db: Session) -> UtilizzoGoogle:
+    """Chiamate fatturabili verso Google Places, questo mese e in totale —
+    per non scoprire la spesa solo quando arriva la fattura Cloud."""
+    inizio_mese = utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    def _somma(campo, condizione=None):
+        stmt = select(func.coalesce(func.sum(campo), 0)).select_from(ScrapeJob)
+        if condizione is not None:
+            stmt = stmt.where(condizione)
+        return db.execute(stmt).scalar_one()
+
+    u = UtilizzoGoogle()
+    u.ricerca_totale = _somma(ScrapeJob.google_chiamate_ricerca)
+    u.dettagli_totale = _somma(ScrapeJob.google_chiamate_dettagli)
+    u.ricerca_mese = _somma(ScrapeJob.google_chiamate_ricerca, ScrapeJob.created_at >= inizio_mese)
+    u.dettagli_mese = _somma(ScrapeJob.google_chiamate_dettagli, ScrapeJob.created_at >= inizio_mese)
+    return u

@@ -4,7 +4,7 @@ import csv
 import io
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, Optional
 from urllib.parse import urlparse
 
@@ -319,6 +319,19 @@ def leads_routine_di_oggi(db: Session) -> list[Lead]:
     return leads
 
 
+def leads_incontri_fissati(db: Session) -> list[Lead]:
+    """Incontri fissati con data/ora impostata, in ordine cronologico —
+    quelli esportabili come eventi di calendario (vedi `leads_a_ics`)."""
+    return list(
+        db.execute(
+            select(Lead)
+            .where(Lead.status == LeadStatus.INCONTRO_FISSATO.value)
+            .where(Lead.prossima_azione_at.is_not(None))
+            .order_by(Lead.prossima_azione_at.asc())
+        ).scalars().all()
+    )
+
+
 def registra_interazione(
     db: Session,
     lead: Lead,
@@ -417,3 +430,46 @@ def leads_to_csv(leads: Iterable[Lead]) -> str:
             riga.append("" if valore is None else valore)
         writer.writerow(riga)
     return buffer.getvalue()
+
+
+def _escape_ics(testo: str) -> str:
+    """Escape dei caratteri speciali richiesti dal formato iCalendar (RFC 5545)."""
+    return (
+        testo.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
+
+
+def leads_a_ics(leads: Iterable[Lead], durata_minuti: int = 60) -> str:
+    """Genera un calendario iCalendar (.ics) con un evento per ogni lead che
+    ha un incontro fissato con data/ora (`prossima_azione_at`). L'orario è
+    quello inserito a mano nella scheda cliente: viene esportato come "ora
+    locale fluttuante" (senza fuso), così il calendario lo mostra esattamente
+    all'ora inserita, senza conversioni di fuso orario a sorpresa."""
+    righe = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//HoReCa Leads//IT", "CALSCALE:GREGORIAN"]
+    adesso = utcnow().strftime("%Y%m%dT%H%M%SZ")
+
+    for lead in leads:
+        if not lead.prossima_azione_at:
+            continue
+        inizio = lead.prossima_azione_at.strftime("%Y%m%dT%H%M%S")
+        fine = (lead.prossima_azione_at + timedelta(minutes=durata_minuti)).strftime("%Y%m%dT%H%M%S")
+        descrizione_parti = [p for p in (lead.telefono, lead.email, lead.sito_web) if p]
+        righe += [
+            "BEGIN:VEVENT",
+            f"UID:lead-{lead.id}-incontro@horeca-leads",
+            f"DTSTAMP:{adesso}",
+            f"DTSTART:{inizio}",
+            f"DTEND:{fine}",
+            f"SUMMARY:{_escape_ics(f'Incontro — {lead.nome}')}",
+        ]
+        if lead.indirizzo:
+            righe.append(f"LOCATION:{_escape_ics(lead.indirizzo)}")
+        if descrizione_parti:
+            righe.append(f"DESCRIPTION:{_escape_ics(' · '.join(descrizione_parti))}")
+        righe.append("END:VEVENT")
+
+    righe.append("END:VCALENDAR")
+    return "\r\n".join(righe) + "\r\n"

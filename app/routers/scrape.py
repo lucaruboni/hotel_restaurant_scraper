@@ -14,6 +14,7 @@ from ..config import settings
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import ScrapeJob, User
+from ..services.metrics import calcola_utilizzo_google
 from ..services.scrape_runner import avvia_job, crea_job
 from ..templating import render
 
@@ -39,6 +40,7 @@ def pagina_scrape(
             "google_disponibile": bool(settings.google_api_key),
             "max_results_cap": settings.max_results_cap,
             "gruppi_categorie": categorie_raggruppate(),
+            "utilizzo_google": calcola_utilizzo_google(db) if settings.google_api_key else None,
             "pagina": "scrape",
         },
     )

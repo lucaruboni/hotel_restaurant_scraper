@@ -99,6 +99,30 @@
       </div>
     </section>
 
+    {% if utilizzo_google %}
+    <section class="card">
+      <div class="card-header"><h2>Utilizzo Google Places</h2></div>
+      <div class="card-body" style="font-size: 13.5px;">
+        <div class="row-between">
+          <span>Ricerche questo mese</span><strong>{{ utilizzo_google.ricerca_mese }}</strong>
+        </div>
+        <div class="row-between mt-2">
+          <span>Dettagli/recensioni questo mese</span><strong>{{ utilizzo_google.dettagli_mese }}</strong>
+        </div>
+        <div class="row-between mt-2 subtle">
+          <span>Totale storico</span>
+          <span>{{ utilizzo_google.ricerca_totale }} ricerche · {{ utilizzo_google.dettagli_totale }} dettagli</span>
+        </div>
+        <p class="hint mt-4" style="margin-bottom:0;">
+          Stima molto approssimativa: circa {{ utilizzo_google.stima_costo_mese | euro }} questo mese.
+          I prezzi Google cambiano nel tempo — verifica il listino aggiornato su
+          <a href="https://mapsplatform.google.com/pricing/" target="_blank" rel="noopener">mapsplatform.google.com/pricing</a>
+          prima di fidartene per un budget.
+        </p>
+      </div>
+    </section>
+    {% endif %}
+
     <section class="card">
       <div class="card-header"><h2>Consiglio commerciale</h2></div>
       <div class="card-body" style="font-size: 13.5px;">

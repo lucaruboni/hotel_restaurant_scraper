@@ -17,6 +17,8 @@ from ..services.leads import (
     cerca_leads,
     conta_segmenti,
     href_segmento,
+    leads_a_ics,
+    leads_incontri_fissati,
     leads_to_csv,
     registra_interazione,
     segmento_corrente,
@@ -138,6 +140,22 @@ def export_csv(
     )
 
 
+@router.get("/incontri.ics")
+def incontri_ics(
+    db: Session = Depends(get_db),
+    utente: User = Depends(get_current_user),
+):
+    """Calendario (.ics) di tutti gli incontri fissati con data/ora: apri il
+    file scaricato per aggiungerli al calendario del telefono/computer."""
+    leads = leads_incontri_fissati(db)
+    contenuto = leads_a_ics(leads)
+    return Response(
+        content=contenuto.encode("utf-8"),
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="incontri-horeca.ics"'},
+    )
+
+
 @router.get("/{lead_id}")
 def scheda(
     lead_id: int,
@@ -156,6 +174,22 @@ def scheda(
             "esiti": list(InteractionOutcome),
             "stati": list(LeadStatus),
         },
+    )
+
+
+@router.get("/{lead_id}/incontro.ics")
+def incontro_singolo_ics(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    utente: User = Depends(get_current_user),
+):
+    """Evento di calendario per l'incontro fissato con questo cliente."""
+    lead = _get_lead(db, lead_id)
+    contenuto = leads_a_ics([lead])
+    return Response(
+        content=contenuto.encode("utf-8"),
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="incontro-{lead_id}.ics"'},
     )
 
 

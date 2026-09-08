@@ -72,6 +72,10 @@ class GooglePlacesClient:
                 "(vedi .env.example)."
             )
         self.session = requests.Session()
+        # Contatori delle chiamate fatturabili: servono solo per dare
+        # visibilità sulla spesa alla dashboard, non incidono sulla ricerca.
+        self.chiamate_ricerca = 0
+        self.chiamate_dettagli = 0
 
     def _headers(self, field_mask: str) -> dict:
         return {
@@ -117,6 +121,7 @@ class GooglePlacesClient:
                 headers=self._headers(SEARCH_FIELD_MASK),
                 timeout=config.REQUEST_TIMEOUT,
             )
+            self.chiamate_ricerca += 1
             if resp.status_code != 200:
                 logger.error("Errore Text Search (%s): %s", resp.status_code, resp.text)
                 resp.raise_for_status()
@@ -141,6 +146,7 @@ class GooglePlacesClient:
             headers=self._headers(DETAILS_FIELD_MASK),
             timeout=config.REQUEST_TIMEOUT,
         )
+        self.chiamate_dettagli += 1
         if resp.status_code != 200:
             logger.error("Errore Place Details (%s): %s", resp.status_code, resp.text)
             resp.raise_for_status()

@@ -206,6 +206,29 @@ tests/       suite pytest (rete esterna sempre mockata)
 CLAUDE.md    istruzioni di progetto per agenti AI e contributori
 ```
 
+## Backup
+
+I dati veri (lead, note, allegati) vivono solo sull'istanza cloud: se si
+rompe, si perdono. `scripts/backup_locale.sh` scarica il database sul tuo
+computer via `scp` (stesso canale usato per il deploy), tenendo gli ultimi
+30 giorni di copie:
+
+```bash
+# 1. Apri lo script e personalizza CHIAVE_SSH/HOST in cima al file (una volta sola)
+# 2. Poi, quando vuoi un backup:
+./scripts/backup_locale.sh
+```
+
+Per farlo in automatico ogni giorno, aggiungi una riga al tuo crontab
+(`crontab -e` sul tuo PC — gira solo quando il PC è acceso):
+
+```
+0 20 * * * cd /percorso/completo/del/progetto && ./scripts/backup_locale.sh >> ~/backup-horeca-leads/log.txt 2>&1
+```
+
+Backup solo del database in questa fase: non copia gli allegati caricati
+nella scheda cliente (foto, PDF) — se iniziate a usarli molto, va esteso.
+
 ## Sicurezza
 
 - Password con bcrypt; nessun segreto nel repository (`.env` è ignorato).

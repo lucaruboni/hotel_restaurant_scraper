@@ -56,6 +56,7 @@ class ScrapeCallbacks:
     on_skip: Optional[Callable[[], None]] = None
     on_warning: Optional[Callable[[str], None]] = None
     on_should_stop: Optional[Callable[[], bool]] = None
+    on_api_usage: Optional[Callable[[int, int], None]] = None
 
     def task_start(self, location: str, category: str, total: int) -> None:
         if self.on_task_start:
@@ -76,6 +77,10 @@ class ScrapeCallbacks:
     def should_stop(self) -> bool:
         """True se l'utente ha chiesto di fermare la ricerca in corso."""
         return bool(self.on_should_stop and self.on_should_stop())
+
+    def api_usage(self, chiamate_ricerca: int, chiamate_dettagli: int) -> None:
+        if self.on_api_usage:
+            self.on_api_usage(chiamate_ricerca, chiamate_dettagli)
 
 
 def parse_locations(raw: str) -> List[str]:
@@ -126,6 +131,15 @@ def _scrape_google(params: ScrapeParams, cb: ScrapeCallbacks) -> List[PlaceResul
     from .google_places import GooglePlacesClient
 
     client = GooglePlacesClient(api_key=params.api_key)
+    try:
+        return _scrape_google_con_client(params, cb, client)
+    finally:
+        # Sempre, anche se il job è stato fermato o è fallito a metà: la
+        # spesa già fatta con Google va comunque contata.
+        cb.api_usage(client.chiamate_ricerca, client.chiamate_dettagli)
+
+
+def _scrape_google_con_client(params: ScrapeParams, cb: ScrapeCallbacks, client) -> List[PlaceResult]:
     risultati: List[PlaceResult] = []
     visti = set()
 

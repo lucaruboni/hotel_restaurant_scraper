@@ -1,5 +1,7 @@
 """Test su deduplica, import, pipeline commerciale, filtri ed export."""
 
+from datetime import datetime
+
 from scraper.models import PlaceResult
 
 from app.models import Lead, LeadStatus
@@ -321,3 +323,70 @@ def test_pulsante_copia_per_claude_su_job_con_csv(client_auth, csrf, db, monkeyp
 
     risposta = client_auth.get("/scrape")
     assert f'data-copy-url="/scrape/{job.id}/csv"' in risposta.text
+
+
+def test_leads_a_ics_genera_evento_valido(db):
+    from app.services.leads import leads_a_ics
+
+    lead = crea_lead(db, nome="Hotel Riunione", telefono="0541 111111")
+    lead.prossima_azione_at = datetime(2026, 10, 5, 15, 30)
+    db.commit()
+
+    ics = leads_a_ics([lead])
+    assert "BEGIN:VCALENDAR" in ics
+    assert "BEGIN:VEVENT" in ics
+    assert "DTSTART:20261005T153000" in ics
+    assert "DTEND:20261005T163000" in ics  # +60 minuti di default
+    assert "SUMMARY:Incontro — Hotel Riunione" in ics
+    assert "END:VCALENDAR" in ics
+
+
+def test_leads_a_ics_salta_i_lead_senza_data(db):
+    from app.services.leads import leads_a_ics
+
+    senza_data = crea_lead(db, nome="Senza data")
+    ics = leads_a_ics([senza_data])
+    assert "BEGIN:VEVENT" not in ics
+
+
+def test_leads_incontri_fissati_solo_con_data(db):
+    from app.models import LeadStatus
+    from app.services.leads import leads_incontri_fissati
+
+    con_data = crea_lead(db, nome="Con data", sito_web="https://a.it")
+    con_data.status = LeadStatus.INCONTRO_FISSATO.value
+    con_data.prossima_azione_at = datetime(2026, 10, 5, 10, 0)
+
+    senza_data = crea_lead(db, nome="Senza data", sito_web="https://b.it")
+    senza_data.status = LeadStatus.INCONTRO_FISSATO.value
+    db.commit()
+
+    risultato = leads_incontri_fissati(db)
+    assert [l.nome for l in risultato] == ["Con data"]
+
+
+def test_route_incontri_ics(client_auth, db):
+    from app.models import LeadStatus
+
+    lead = crea_lead(db, nome="Riunione Test")
+    lead.status = LeadStatus.INCONTRO_FISSATO.value
+    lead.prossima_azione_at = datetime(2026, 11, 1, 9, 0)
+    db.commit()
+
+    risposta = client_auth.get("/leads/incontri.ics")
+    assert risposta.status_code == 200
+    assert risposta.headers["content-type"].startswith("text/calendar")
+    assert "Riunione Test" in risposta.text
+
+
+def test_route_incontro_singolo_ics(client_auth, db):
+    from app.models import LeadStatus
+
+    lead = crea_lead(db, nome="Singolo")
+    lead.status = LeadStatus.INCONTRO_FISSATO.value
+    lead.prossima_azione_at = datetime(2026, 11, 2, 9, 0)
+    db.commit()
+
+    risposta = client_auth.get(f"/leads/{lead.id}/incontro.ics")
+    assert risposta.status_code == 200
+    assert "Singolo" in risposta.text

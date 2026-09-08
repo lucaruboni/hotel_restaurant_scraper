@@ -175,8 +175,14 @@
             </li>
             <li>
               <a href="/leads?status=incontro_fissato">Prepara gli incontri fissati</a>
-              <span class="badge {% if m.incontri_fissati %}badge-in_trattativa{% endif %}">
-                {{ m.incontri_fissati }}
+              <span class="row" style="gap: 6px;">
+                {% if m.incontri_fissati %}
+                  <a href="/leads/incontri.ics" class="btn btn-sm btn-ghost" style="padding: 2px 8px; min-height: auto;"
+                     title="Scarica gli incontri fissati come eventi di calendario">📅 Calendario</a>
+                {% endif %}
+                <span class="badge {% if m.incontri_fissati %}badge-in_trattativa{% endif %}">
+                  {{ m.incontri_fissati }}
+                </span>
               </span>
             </li>
             <li>

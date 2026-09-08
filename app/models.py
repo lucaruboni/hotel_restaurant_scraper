@@ -319,6 +319,10 @@ class ScrapeJob(Base):
     errore: Mapped[str] = mapped_column(Text, default="")
     csv_path: Mapped[str] = mapped_column(String(500), default="")
     annullamento_richiesto: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Chiamate fatturabili verso Google Places (0 per i job su sorgente osm):
+    # danno visibilità sulla spesa senza dover aspettare la fattura Cloud.
+    google_chiamate_ricerca: Mapped[int] = mapped_column(Integer, default=0)
+    google_chiamate_dettagli: Mapped[int] = mapped_column(Integer, default=0)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

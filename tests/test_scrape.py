@@ -205,9 +205,11 @@ def test_categoria_google_fallita_non_perde_le_altre(monkeypatch):
 
     class ClientFinto:
         def __init__(self, api_key=None):
-            pass
+            self.chiamate_ricerca = 0
+            self.chiamate_dettagli = 0
 
         def search_places(self, location, category, max_results):
+            self.chiamate_ricerca += 1
             if category == "architetto":
                 raise Exception("400 Client Error: Bad Request")
             yield {"id": f"{category}-1", "displayName": {"text": f"Studio {category}"}}
@@ -504,3 +506,69 @@ def test_riprova_job_google_senza_chiave_rifiutata(client_auth, csrf, db, utente
 def test_riprova_job_inesistente_404(client_auth, csrf):
     risposta = client_auth.post("/scrape/999999/riprova", data={"csrf_token": csrf})
     assert risposta.status_code == 404
+
+
+def test_conteggio_chiamate_google_propagato_al_job(db, monkeypatch, utente):
+    class ClientFinto:
+        def __init__(self, api_key=None):
+            self.chiamate_ricerca = 3
+            self.chiamate_dettagli = 2
+
+        def search_places(self, location, category, max_results):
+            yield {"id": "1", "displayName": {"text": "Hotel Finto"}}
+
+        def get_details(self, place_id):
+            return {}
+
+        def parse_reviews(self, dettagli, max_reviews=3):
+            return []
+
+        def parse_place(self, place, category, location):
+            return PlaceResult(category=category, name="Hotel Finto", address="", province_or_region=location)
+
+    monkeypatch.setattr("scraper.google_places.GooglePlacesClient", ClientFinto)
+
+    job = scrape_runner.crea_job(
+        db, localita="Riccione", categorie=["hotel"], sorgente="google",
+        max_results=10, con_recensioni=False, con_arricchimento=False, user_id=utente.id,
+    )
+    scrape_runner.esegui_job(job.id)
+
+    db.expire_all()
+    job = db.get(ScrapeJob, job.id)
+    assert job.google_chiamate_ricerca == 3
+    assert job.google_chiamate_dettagli == 2
+
+
+def test_calcola_utilizzo_google_somma_i_job(db, utente):
+    from app.services.metrics import calcola_utilizzo_google
+
+    job1 = scrape_runner.crea_job(
+        db, localita="A", categorie=["hotel"], sorgente="google",
+        max_results=10, con_recensioni=False, con_arricchimento=False, user_id=utente.id,
+    )
+    job1.google_chiamate_ricerca = 5
+    job1.google_chiamate_dettagli = 1
+    job2 = scrape_runner.crea_job(
+        db, localita="B", categorie=["hotel"], sorgente="osm",
+        max_results=10, con_recensioni=False, con_arricchimento=False, user_id=utente.id,
+    )
+    job2.google_chiamate_ricerca = 0
+    db.commit()
+
+    u = calcola_utilizzo_google(db)
+    assert u.ricerca_totale == 5
+    assert u.dettagli_totale == 1
+    assert u.ricerca_mese == 5  # il job è stato appena creato, rientra nel mese corrente
+
+
+def test_pagina_scrape_mostra_utilizzo_google_solo_se_configurato(client_auth, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "google_api_key", "")
+    risposta = client_auth.get("/scrape")
+    assert "Utilizzo Google Places" not in risposta.text
+
+    monkeypatch.setattr(settings, "google_api_key", "una-chiave")
+    risposta = client_auth.get("/scrape")
+    assert "Utilizzo Google Places" in risposta.text
