@@ -390,3 +390,30 @@ def test_route_incontro_singolo_ics(client_auth, db):
     risposta = client_auth.get(f"/leads/{lead.id}/incontro.ics")
     assert risposta.status_code == 200
     assert "Singolo" in risposta.text
+
+
+def test_genera_messaggio_contatto_per_gruppo(db):
+    from app.message_templates import genera_messaggio_contatto
+
+    hotel = crea_lead(db, nome="Hotel Bello", zona="Riccione", categoria="hotel")
+    testo = genera_messaggio_contatto(hotel, mittente="Fabio")
+    assert "Fabio" in testo
+    assert "Hotel Bello" in testo
+    assert "Riccione" in testo
+    assert "BLU" in testo
+
+    avvocato = crea_lead(db, nome="Studio Rossi", categoria="avvocato", sito_web="https://rossi.it")
+    testo_avvocato = genera_messaggio_contatto(avvocato)
+    assert "[il tuo nome]" in testo_avvocato  # mittente non specificato: placeholder esplicito
+    assert "studi professionali" in testo_avvocato
+
+    frantoio = crea_lead(db, nome="Frantoio Verdi", categoria="frantoio", sito_web="https://verdi.it")
+    testo_frantoio = genera_messaggio_contatto(frantoio)
+    assert "e-commerce" in testo_frantoio
+
+
+def test_pulsante_genera_messaggio_nella_scheda(client_auth, db):
+    lead = crea_lead(db, nome="Hotel Pulsante")
+    risposta = client_auth.get(f"/leads/{lead.id}")
+    assert "Genera messaggio" in risposta.text
+    assert "data-copy-text=" in risposta.text

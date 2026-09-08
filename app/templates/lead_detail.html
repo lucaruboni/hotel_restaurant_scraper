@@ -18,6 +18,9 @@
   </a>
   <button type="button" class="btn btn-ghost" title="Copia i dati di questo cliente per incollarli in chat con Claude"
           data-copy-text="{{ lead | testo_per_claude }}">Copia per Claude</button>
+  <button type="button" class="btn btn-ghost"
+          title="Copia un messaggio di primo contatto pronto da rifinire"
+          data-copy-text="{{ lead | messaggio_contatto(utente.nome if utente else '') }}">✉️ Genera messaggio</button>
   {% if lead.status == LeadStatus.INCONTRO_FISSATO.value and lead.prossima_azione_at %}
     <a href="/leads/{{ lead.id }}/incontro.ics" class="btn btn-ghost" title="Aggiungi l'incontro al calendario">📅 Aggiungi al calendario</a>
   {% endif %}

@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 
 from scraper.categories import CATEGORY_GROUP, CATEGORY_LABELS, GRUPPI
 
+from .message_templates import genera_messaggio_contatto
 from .models import CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, LeadStatus
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -95,6 +96,7 @@ templates.env.filters["data"] = formatta_data
 templates.env.filters["da_quanto"] = da_quanto
 templates.env.filters["euro"] = euro
 templates.env.filters["testo_per_claude"] = testo_lead_per_claude
+templates.env.filters["messaggio_contatto"] = genera_messaggio_contatto
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 templates.env.globals["CHANNEL_LABELS"] = CHANNEL_LABELS
 templates.env.globals["OUTCOME_LABELS"] = OUTCOME_LABELS
