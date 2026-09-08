@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from scraper.categories import CATEGORY_LABELS
+
 from ..models import Interaction, Lead, LeadStatus, OUTCOME_RISPOSTA, ScrapeJob, utcnow
 
 # Campi arricchibili: se il lead esiste già e il campo è vuoto, lo completiamo.
@@ -330,6 +332,44 @@ def leads_incontri_fissati(db: Session) -> list[Lead]:
             .order_by(Lead.prossima_azione_at.asc())
         ).scalars().all()
     )
+
+
+def routine_pubblica_testo(db: Session) -> str:
+    """Riepilogo testuale della routine per l'endpoint pubblico protetto da
+    token (vedi `routers/routine_pubblica.py`): SOLO cosa fare e le date/ore
+    degli incontri — niente telefoni, email, indirizzi o siti. Pensato per un
+    agente esterno che non deve mai vedere i dati di contatto dei clienti."""
+    leads = leads_routine_di_oggi(db)
+    incontri = leads_incontri_fissati(db)
+
+    righe = ["Routine commerciale — cosa fare oggi:", ""]
+
+    nuovi = [l for l in leads if l.status == LeadStatus.NUOVO.value]
+    if nuovi:
+        righe.append(f"Nuovi da contattare ({len(nuovi)}):")
+        righe += [f"- {l.nome} ({CATEGORY_LABELS.get(l.categoria, l.categoria)})" for l in nuovi[:15]]
+        righe.append("")
+
+    da_ricontattare = [l for l in leads if l.prossima_azione_at and l.status != LeadStatus.INCONTRO_FISSATO.value]
+    if da_ricontattare:
+        righe.append(f"Da ricontattare ({len(da_ricontattare)}):")
+        righe += [f"- {l.nome}: entro il {l.prossima_azione_at.strftime('%d/%m alle %H:%M')}" for l in da_ricontattare[:15]]
+        righe.append("")
+
+    if incontri:
+        righe.append(f"Incontri fissati ({len(incontri)}):")
+        righe += [f"- {l.nome}: {l.prossima_azione_at.strftime('%d/%m alle %H:%M')}" for l in incontri[:15]]
+        righe.append("")
+
+    in_trattativa = [l for l in leads if l.status == LeadStatus.IN_TRATTATIVA.value]
+    if in_trattativa:
+        righe.append(f"Trattative aperte ({len(in_trattativa)}):")
+        righe += [f"- {l.nome}" for l in in_trattativa[:15]]
+
+    if len(righe) == 2:
+        righe.append("Nessuna azione in sospeso al momento.")
+
+    return "\n".join(righe)
 
 
 def registra_interazione(

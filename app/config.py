@@ -79,5 +79,11 @@ class Settings:
         # Vuoto per default: l'endpoint /mcp resta chiuso finché non lo imposti.
         self.mcp_api_key = os.getenv("MCP_API_KEY", "").strip()
 
+        # Routine pubblica: un solo endpoint, sola lettura, SENZA contatti né
+        # indirizzi — solo cosa fare e le date/ore degli incontri. Pensato per
+        # un agente Claude schedulato che non può raggiungere la rete privata
+        # Tailscale. Vuoto per default: l'endpoint resta chiuso (404).
+        self.routine_public_token = os.getenv("ROUTINE_PUBLIC_TOKEN", "").strip()
+
 
 settings = Settings()
