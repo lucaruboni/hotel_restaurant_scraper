@@ -176,6 +176,11 @@ class Lead(Base):
     # Pipeline commerciale
     status: Mapped[str] = mapped_column(String(30), default=LeadStatus.NUOVO.value, index=True)
     valore_stimato: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Lista chiamate del socio (vedi services/leads.py): una volta inserito in
+    # un lotto da chiamare, il lead non viene riproposto in un lotto futuro
+    # anche se torna "nuovo" — evita di assegnarlo due volte per errore.
+    in_coda_chiamate: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    coda_chiamate_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     prossima_azione_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     primo_contatto_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ultimo_contatto_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

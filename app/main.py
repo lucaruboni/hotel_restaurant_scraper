@@ -20,7 +20,7 @@ from .deps import RedirectToLogin, get_session_data
 from .mcp_server import crea_mcp_app, mcp_mount
 from .middleware import CSRFMiddleware
 from .models import User
-from .routers import auth, dashboard, leads, notes, routine_pubblica, scrape
+from .routers import auth, chiamate, dashboard, leads, notes, routine_pubblica, scrape
 from .services.scrape_runner import recupera_job_interrotti
 from .templating import render
 
@@ -121,6 +121,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, tags=["auth"])
     app.include_router(dashboard.router, tags=["dashboard"])
     app.include_router(leads.router, tags=["leads"])
+    app.include_router(chiamate.router, tags=["chiamate"])
     app.include_router(notes.router, tags=["note"])
     app.include_router(scrape.router, tags=["scrape"])
     app.include_router(routine_pubblica.router, tags=["routine-pubblica"])

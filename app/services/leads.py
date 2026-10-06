@@ -321,6 +321,63 @@ def leads_routine_di_oggi(db: Session) -> list[Lead]:
     return leads
 
 
+#: Quanti contatti mette nel lotto il bottone "Aggiungi lotto" della pagina
+#: chiamate — pensato perché il socio possa finirli in una mattinata.
+DIMENSIONE_LOTTO_CHIAMATE = 10
+
+
+def candidati_lotto_chiamate(db: Session, limit: int = DIMENSIONE_LOTTO_CHIAMATE) -> list[Lead]:
+    """I prossimi lead non ancora proposti per la lista chiamate: nuovi, con
+    un numero di telefono, mai inseriti in un lotto precedente. I meglio
+    valutati prima, poi i più vecchi (nessuno deve restare indietro per
+    sempre)."""
+    stmt = (
+        select(Lead)
+        .where(Lead.status == LeadStatus.NUOVO.value)
+        .where(Lead.telefono != "")
+        .where(Lead.in_coda_chiamate.is_(False))
+        .order_by(Lead.valutazione.desc().nullslast(), Lead.created_at.asc())
+        .limit(limit)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
+def conta_candidati_lotto_chiamate(db: Session) -> int:
+    stmt = (
+        select(func.count())
+        .select_from(Lead)
+        .where(Lead.status == LeadStatus.NUOVO.value)
+        .where(Lead.telefono != "")
+        .where(Lead.in_coda_chiamate.is_(False))
+    )
+    return db.execute(stmt).scalar_one()
+
+
+def aggiungi_lotto_chiamate(db: Session, limit: int = DIMENSIONE_LOTTO_CHIAMATE) -> list[Lead]:
+    """Sposta i prossimi `limit` candidati nella lista chiamate attiva."""
+    adesso = utcnow()
+    lotto = candidati_lotto_chiamate(db, limit=limit)
+    for lead in lotto:
+        lead.in_coda_chiamate = True
+        lead.coda_chiamate_at = adesso
+    db.commit()
+    return lotto
+
+
+def lista_chiamate_attiva(db: Session) -> list[Lead]:
+    """I lead attualmente nella lista chiamate e non ancora contattati: una
+    volta registrata una qualunque interazione lo stato esce da "nuovo" (vedi
+    `registra_interazione`) e il lead esce da qui senza bisogno di rimuoverlo
+    esplicitamente dal lotto."""
+    stmt = (
+        select(Lead)
+        .where(Lead.in_coda_chiamate.is_(True))
+        .where(Lead.status == LeadStatus.NUOVO.value)
+        .order_by(Lead.coda_chiamate_at.asc())
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
 def leads_incontri_fissati(db: Session) -> list[Lead]:
     """Incontri fissati con data/ora impostata, in ordine cronologico —
     quelli esportabili come eventi di calendario (vedi `leads_a_ics`)."""

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block titolo %}Lista chiamate — HoReCa Leads{% endblock %}
+{% block intestazione %}Lista chiamate{% endblock %}
+{% block sottotitolo %}
+  {{ lista | length }} da chiamare adesso
+  {% if disponibili %}· altri {{ disponibili }} pronti in archivio{% endif %}
+{% endblock %}
+
+{% block azioni %}
+  <form method="post" action="/chiamate/aggiungi">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="btn btn-primary" {% if not disponibili %}disabled{% endif %}>
+      Aggiungi {{ dimensione_lotto }} nuovi contatti
+    </button>
+  </form>
+{% endblock %}
+
+{% block contenuto %}
+{% if lista %}
+  <div class="grid grid-2 chiamate-grid">
+    {% for lead in lista %}
+      <section class="card chiamata-card">
+        <div class="card-body">
+          <div class="chiamata-head">
+            <div>
+              <h3>{{ lead.nome }}</h3>
+              <div class="subtle">
+                <span class="badge badge-{{ CATEGORY_GROUP.get(lead.categoria, '') }}">
+                  {{ CATEGORY_LABELS.get(lead.categoria, lead.categoria) }}
+                </span>
+                {% if lead.stelle %}<span class="nowrap">★ {{ lead.stelle }}</span>{% endif %}
+                {% if lead.valutazione %}<span class="nowrap">· {{ "%.1f"|format(lead.valutazione) }}/5 ({{ lead.numero_recensioni or 0 }})</span>{% endif %}
+              </div>
+              <div class="subtle">{{ lead.zona }}{% if lead.indirizzo %} · {{ lead.indirizzo | truncate(50) }}{% endif %}</div>
+            </div>
+            <a href="/leads/{{ lead.id }}" class="btn btn-sm btn-ghost" title="Scheda completa">Scheda →</a>
+          </div>
+
+          <a class="chiamata-telefono" href="tel:{{ lead.telefono }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+            {{ lead.telefono }}
+          </a>
+
+          {% if lead.sito_web or lead.email %}
+            <div class="chiamata-extra subtle">
+              {% if lead.sito_web %}<a href="{{ lead.sito_web }}" target="_blank" rel="noopener">Sito</a>{% endif %}
+              {% if lead.email %}<a href="mailto:{{ lead.email }}">Email</a>{% endif %}
+            </div>
+          {% endif %}
+
+          <form method="post" action="/chiamate/{{ lead.id }}/esito" class="chiamata-esiti">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" name="esito" value="risposta_positiva" class="btn btn-sm">✅ Interessato</button>
+            <button type="submit" name="esito" value="da_ricontattare" class="btn btn-sm">↻ Richiamare</button>
+            <button type="submit" name="esito" value="nessuna_risposta" class="btn btn-sm btn-ghost">— Nessuna risposta</button>
+            <button type="submit" name="esito" value="risposta_negativa" class="btn btn-sm btn-ghost">✕ Non interessato</button>
+          </form>
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty">
+    <div class="empty-icon">📞</div>
+    <h3>Nessun contatto in lista</h3>
+    {% if disponibili %}
+      <p class="muted">Ci sono {{ disponibili }} potenziali clienti pronti: aggiungine {{ dimensione_lotto }} per iniziare.</p>
+      <form method="post" action="/chiamate/aggiungi">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-primary mt-4">Aggiungi {{ dimensione_lotto }} nuovi contatti</button>
+      </form>
+    {% else %}
+      <p class="muted">Non ci sono nuovi contatti con telefono pronti per la chiamata. Avvia una nuova ricerca per trovarne altri.</p>
+      <a href="/scrape" class="btn btn-primary mt-4">Cerca nuove strutture</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

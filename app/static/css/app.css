@@ -413,6 +413,25 @@ tbody tr:hover { background: var(--bg-hover); }
 .gallery-size { color: var(--text-subtle); }
 .gallery-actions { display: flex; gap: var(--sp-1); padding: 0 var(--sp-2) var(--sp-2); background: var(--bg-elevated); }
 
+/* Lista chiamate: un lotto di schede, pensate per il dito, non per il mouse */
+.chiamate-grid { grid-template-columns: 1fr; }
+.chiamata-card h3 { margin-bottom: var(--sp-1); }
+.chiamata-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.chiamata-telefono {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: 20px; font-weight: 620; color: var(--text);
+  padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3);
+  background: var(--klein-soft); border-radius: var(--radius); min-height: 44px;
+}
+.chiamata-telefono:hover { background: var(--accent-soft); text-decoration: none; }
+.chiamata-telefono svg { width: 20px; height: 20px; color: var(--klein); flex-shrink: 0; }
+.chiamata-extra { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.chiamata-esiti { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+@media (min-width: 740px) {
+  .chiamate-grid { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+}
+
 /* Lettura nota a pagina intera */
 .reading {
   max-width: 760px; margin: 0 auto;
