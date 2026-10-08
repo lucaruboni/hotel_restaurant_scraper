@@ -19,7 +19,7 @@
 {% if lista %}
   <div class="grid grid-2 chiamate-grid">
     {% for lead in lista %}
-      <section class="card chiamata-card">
+      <section class="card chiamata-card" id="lead-{{ lead.id }}">
         <div class="card-body">
           <div class="chiamata-head">
             <div>
@@ -35,6 +35,21 @@
             </div>
             <a href="/leads/{{ lead.id }}" class="btn btn-sm btn-ghost" title="Scheda completa">Scheda →</a>
           </div>
+
+          <ul class="chiamata-checklist">
+            {% for slug, etichetta, fatto in lead.checklist_chiamate %}
+              <li>
+                <form method="post" action="/chiamate/{{ lead.id }}/checklist">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="voce" value="{{ slug }}">
+                  <label class="checkbox chiamata-check-item {% if fatto %}fatto{% endif %}">
+                    <input type="checkbox" data-autosubmit {% if fatto %}checked{% endif %}>
+                    {{ etichetta }}
+                  </label>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
 
           <a class="chiamata-telefono" href="tel:{{ lead.telefono }}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">

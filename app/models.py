@@ -94,6 +94,19 @@ class ContactChannel(str, Enum):
 
 CHANNEL_LABELS = {c.value: c.etichetta for c in ContactChannel}
 
+#: Checklist fissa mostrata sulla lista chiamate (vedi routers/chiamate.py):
+#: cosa fare, in ordine, prima e dopo aver chiamato un contatto. Voci
+#: indipendenti (non uno stato della pipeline): si possono spuntare in
+#: qualunque ordine, e restano sul lead anche dopo l'esito della chiamata.
+CHECKLIST_CHIAMATE = [
+    ("sito", "Visto il sito"),
+    ("social", "Visti i social"),
+    ("email_preparata", "Email pronta (con eventuali consigli/migliorie)"),
+    ("chiamata", "Chiamato"),
+    ("email_inviata", "Email inviata"),
+]
+CHECKLIST_CHIAMATE_SLUG = {slug for slug, _ in CHECKLIST_CHIAMATE}
+
 
 class InteractionOutcome(str, Enum):
     INVIATO = "inviato"
@@ -181,6 +194,13 @@ class Lead(Base):
     # anche se torna "nuovo" — evita di assegnarlo due volte per errore.
     in_coda_chiamate: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     coda_chiamate_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # Checklist della lista chiamate (vedi CHECKLIST_CHIAMATE sopra): una
+    # colonna per voce, così resta semplice da leggere/scrivere via ORM.
+    chk_sito: Mapped[bool] = mapped_column(Boolean, default=False)
+    chk_social: Mapped[bool] = mapped_column(Boolean, default=False)
+    chk_email_preparata: Mapped[bool] = mapped_column(Boolean, default=False)
+    chk_chiamata: Mapped[bool] = mapped_column(Boolean, default=False)
+    chk_email_inviata: Mapped[bool] = mapped_column(Boolean, default=False)
     prossima_azione_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     primo_contatto_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ultimo_contatto_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -213,6 +233,11 @@ class Lead(Base):
     @property
     def is_chiuso(self) -> bool:
         return self.status in (LeadStatus.CHIUSO_VINTO.value, LeadStatus.CHIUSO_PERSO.value)
+
+    @property
+    def checklist_chiamate(self) -> list[tuple[str, str, bool]]:
+        """Voce, etichetta e spuntato/no per ciascuna voce di `CHECKLIST_CHIAMATE`."""
+        return [(slug, etichetta, getattr(self, f"chk_{slug}")) for slug, etichetta in CHECKLIST_CHIAMATE]
 
 
 class Interaction(Base):

@@ -6,7 +6,11 @@
 :root {
   /* Palette fissa BLU — bianco/inchiostro/fluo/bordo, blu Klein come accento
      per i dati che contano. Nessuna variante scura: è una decisione presa,
-     non una scelta lasciata all'utente (vedi palette-fissa-easter-egg.html). */
+     non una scelta lasciata all'utente (vedi palette-fissa-easter-egg.html).
+     `color-scheme: light` dice ai browser (soprattutto Android/Chrome con
+     "Forza tema scuro per i siti") di non ritoccare i colori: senza, alcuni
+     telefoni invertono/alterano gli sfondi e il risultato è illeggibile. */
+  color-scheme: light;
   --bg: #ffffff;
   --bg-elevated: #ffffff;
   --bg-sunken: #fafaf6;
@@ -427,6 +431,10 @@ tbody tr:hover { background: var(--bg-hover); }
 .chiamata-telefono svg { width: 20px; height: 20px; color: var(--klein); flex-shrink: 0; }
 .chiamata-extra { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-3); }
 .chiamata-esiti { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.chiamata-checklist { list-style: none; margin: 0 0 var(--sp-3); padding: 0; border: 1px solid var(--surface-border); border-radius: var(--radius); overflow: hidden; }
+.chiamata-checklist li:not(:last-child) { border-bottom: 1px solid var(--surface-border); }
+.chiamata-check-item { display: flex !important; padding: var(--sp-2) var(--sp-3); min-height: 44px; margin: 0; font-size: 13.5px; }
+.chiamata-check-item.fatto { color: var(--text-muted); text-decoration: line-through; }
 
 @media (min-width: 740px) {
   .chiamate-grid { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }

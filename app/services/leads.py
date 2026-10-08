@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from scraper.categories import CATEGORY_LABELS
 
-from ..models import Interaction, Lead, LeadStatus, OUTCOME_RISPOSTA, ScrapeJob, utcnow
+from ..models import CHECKLIST_CHIAMATE_SLUG, Interaction, Lead, LeadStatus, OUTCOME_RISPOSTA, ScrapeJob, utcnow
 
 # Campi arricchibili: se il lead esiste già e il campo è vuoto, lo completiamo.
 CAMPI_ARRICCHIBILI = (
@@ -376,6 +376,18 @@ def lista_chiamate_attiva(db: Session) -> list[Lead]:
         .order_by(Lead.coda_chiamate_at.asc())
     )
     return list(db.execute(stmt).scalars().all())
+
+
+def inverti_voce_checklist(db: Session, lead: Lead, voce: str) -> bool:
+    """Spunta/despunta una voce della checklist chiamate (vedi
+    `CHECKLIST_CHIAMATE` in models.py). Restituisce il nuovo valore."""
+    if voce not in CHECKLIST_CHIAMATE_SLUG:
+        raise ValueError(f"Voce di checklist non valida: {voce}")
+    campo = f"chk_{voce}"
+    nuovo_valore = not getattr(lead, campo)
+    setattr(lead, campo, nuovo_valore)
+    db.commit()
+    return nuovo_valore
 
 
 def leads_incontri_fissati(db: Session) -> list[Lead]:

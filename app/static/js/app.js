@@ -35,6 +35,14 @@
     }, 3000);
   }
 
+  // --- Checkbox che si salvano da sole (lista chiamate) -------------------
+  document.addEventListener("change", function (evento) {
+    var campo = evento.target;
+    if (campo.matches("input[type=checkbox][data-autosubmit]")) {
+      campo.closest("form").submit();
+    }
+  });
+
   // --- Textarea che cresce con il contenuto -------------------------------
   function autosize(el) {
     el.style.height = "auto";

@@ -11,11 +11,12 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import get_current_user
-from ..models import ContactChannel, InteractionOutcome, Lead, User
+from ..models import CHECKLIST_CHIAMATE_SLUG, ContactChannel, InteractionOutcome, Lead, User
 from ..services.leads import (
     DIMENSIONE_LOTTO_CHIAMATE,
     aggiungi_lotto_chiamate,
     conta_candidati_lotto_chiamate,
+    inverti_voce_checklist,
     lista_chiamate_attiva,
     registra_interazione,
 )
@@ -79,5 +80,26 @@ def registra_esito(
     return _redirect(f"{lead.nome}: contatto registrato")
 
 
+@router.post("/{lead_id}/checklist")
+def checklist(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    utente: User = Depends(get_current_user),
+    voce: str = Form(...),
+):
+    lead = _get_lead(db, lead_id)
+    if voce not in CHECKLIST_CHIAMATE_SLUG:
+        raise HTTPException(status_code=400, detail="Voce di checklist non valida")
+    inverti_voce_checklist(db, lead, voce)
+    return _redirect_anchor(lead_id)
+
+
 def _redirect(msg: str, tipo: str = "ok"):
     return RedirectResponse(f"/chiamate?msg={quote(msg)}&tipo={tipo}", status_code=303)
+
+
+def _redirect_anchor(lead_id: int):
+    """Rimanda alla scheda del lead appena aggiornata: una checklist si
+    spunta voce per voce, e senza l'ancora ogni tocco rimanderebbe in cima
+    alla lista invece di restare sulla scheda che si stava compilando."""
+    return RedirectResponse(f"/chiamate#lead-{lead_id}", status_code=303)

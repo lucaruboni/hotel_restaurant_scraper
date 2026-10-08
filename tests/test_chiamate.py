@@ -69,6 +69,35 @@ def test_pagina_chiamate_richiede_login(client):
     assert risposta.headers["location"].startswith("/login")
 
 
+def test_checklist_si_puo_spuntare_e_despuntare(client_auth, csrf, db):
+    lead = crea_lead(db, nome="Hotel Checklist", telefono="0541 444444", sito_web="https://checklist.it")
+
+    risposta = client_auth.post(
+        f"/chiamate/{lead.id}/checklist",
+        data={"csrf_token": csrf, "voce": "sito"},
+        follow_redirects=False,
+    )
+    assert risposta.status_code == 303
+    assert risposta.headers["location"] == f"/chiamate#lead-{lead.id}"
+    db.refresh(lead)
+    assert lead.chk_sito is True
+    assert lead.chk_social is False
+
+    client_auth.post(f"/chiamate/{lead.id}/checklist", data={"csrf_token": csrf, "voce": "sito"})
+    db.refresh(lead)
+    assert lead.chk_sito is False
+
+
+def test_checklist_rifiuta_voce_non_valida(client_auth, csrf, db):
+    lead = crea_lead(db, nome="Hotel Voce Invalida", telefono="0541 555555", sito_web="https://invalida.it")
+
+    risposta = client_auth.post(
+        f"/chiamate/{lead.id}/checklist",
+        data={"csrf_token": csrf, "voce": "non_esiste"},
+    )
+    assert risposta.status_code == 400
+
+
 def test_aggiungi_lotto_via_http(client_auth, csrf, db):
     crea_lead(db, nome="Hotel Http", telefono="0541 333333", sito_web="https://http.it")
 
