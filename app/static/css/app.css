@@ -562,7 +562,17 @@ tbody tr:hover { background: var(--bg-hover); }
   .sidebar-footer .btn { width: auto; padding: 6px 10px; font-size: 11px; }
   .main { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
   .topbar, .content { padding-left: var(--sp-4); padding-right: var(--sp-4); }
-  .topbar { padding-top: calc(var(--sp-4) + env(safe-area-inset-top)); }
+  .topbar {
+    padding-top: calc(var(--sp-4) + env(safe-area-inset-top));
+    /* Senza questo, su un titolo lungo (es. il nome di un lead) che va a
+       capo su più righe, .topbar-actions restava centrato verticalmente
+       nella riga e finiva sovrapposto al testo del titolo invece di stare
+       sotto. Impilati, con le azioni sempre a larghezza piena. */
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .topbar-actions { flex-wrap: wrap; width: 100%; }
+  .topbar-titles h1 { font-size: 21px; }
   .funnel-step { grid-template-columns: 110px 1fr 60px; }
 }
 

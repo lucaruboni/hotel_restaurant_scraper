@@ -96,6 +96,12 @@ def create_app() -> FastAPI:
         risposta.headers["Referrer-Policy"] = "same-origin"
         risposta.headers["Content-Security-Policy"] = CSP
         risposta.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+        # Le pagine HTML sono sempre generate al volo: mai cache, nemmeno
+        # euristica. Senza, le "app" da schermata Home su iOS (WKWebView in
+        # modalità standalone) tendono a tenersi la pagina vecchia per
+        # giorni anche dopo un deploy, indipendentemente dal contenuto.
+        if risposta.headers.get("content-type", "").startswith("text/html"):
+            risposta.headers["Cache-Control"] = "no-store, must-revalidate"
         if settings.cookie_secure:
             risposta.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return risposta
