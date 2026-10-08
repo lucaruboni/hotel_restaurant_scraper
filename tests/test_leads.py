@@ -417,3 +417,51 @@ def test_pulsante_genera_messaggio_nella_scheda(client_auth, db):
     risposta = client_auth.get(f"/leads/{lead.id}")
     assert "Genera messaggio" in risposta.text
     assert "data-copy-text=" in risposta.text
+
+
+def test_prompt_followup_include_storico_e_proposta(db):
+    from app.message_templates import genera_prompt_followup
+
+    lead = crea_lead(db, nome="Hotel Followup", zona="Cattolica")
+    lead.proposta = "sito nuovo + automazione prenotazioni"
+    db.commit()
+
+    senza_storico = genera_prompt_followup(lead, mittente="Luca")
+    assert "Hotel Followup" in senza_storico
+    assert "Luca" in senza_storico
+    assert "sito nuovo + automazione prenotazioni" in senza_storico
+    assert "Non ci sono ancora contatti registrati" in senza_storico
+
+    registra_interazione(
+        db, lead, canale="telefono", esito="risposta_positiva", testo="Interessato, richiamare giovedì",
+    )
+    db.refresh(lead)
+    con_storico = genera_prompt_followup(lead)
+    assert "Interessato, richiamare giovedì" in con_storico
+    assert "Risposta positiva" in con_storico
+
+
+def test_salva_proposta(client_auth, csrf, db):
+    lead = crea_lead(db, nome="Hotel Proposta")
+
+    risposta = client_auth.post(
+        f"/leads/{lead.id}/proposta",
+        data={"csrf_token": csrf, "proposta": "Consulenza social + sito"},
+        follow_redirects=False,
+    )
+
+    assert risposta.status_code == 303
+    db.refresh(lead)
+    assert lead.proposta == "Consulenza social + sito"
+
+
+def test_proposta_visibile_in_lista_chiamate(client_auth, db):
+    from app.services.leads import aggiungi_lotto_chiamate
+
+    lead = crea_lead(db, nome="Hotel Con Proposta", telefono="0541 777777", sito_web="https://conproposta.it")
+    lead.proposta = "Pacchetto automazione prenotazioni"
+    db.commit()
+    aggiungi_lotto_chiamate(db, limit=10)
+
+    risposta = client_auth.get("/chiamate")
+    assert "Pacchetto automazione prenotazioni" in risposta.text

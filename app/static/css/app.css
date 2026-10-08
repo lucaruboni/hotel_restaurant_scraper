@@ -435,6 +435,7 @@ tbody tr:hover { background: var(--bg-hover); }
 .chiamata-checklist li:not(:last-child) { border-bottom: 1px solid var(--surface-border); }
 .chiamata-check-item { display: flex !important; padding: var(--sp-2) var(--sp-3); min-height: 44px; margin: 0; font-size: 13.5px; }
 .chiamata-check-item.fatto { color: var(--text-muted); text-decoration: line-through; }
+.chiamata-proposta { font-size: 13px; background: var(--warning-soft); color: var(--warning); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); margin-bottom: var(--sp-3); }
 
 @media (min-width: 740px) {
   .chiamate-grid { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }

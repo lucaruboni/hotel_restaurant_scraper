@@ -1,5 +1,6 @@
 """Configurazione Jinja2 e helper di rendering."""
 
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -9,11 +10,31 @@ from fastapi.templating import Jinja2Templates
 
 from scraper.categories import CATEGORY_GROUP, CATEGORY_LABELS, GRUPPI
 
-from .message_templates import genera_messaggio_contatto
+from .message_templates import genera_messaggio_contatto, genera_prompt_followup
 from .models import CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, LeadStatus
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+def _impronta_file(percorso: Path) -> str:
+    """Hash breve del contenuto di un file statico, da usare come `?v=` negli
+    url di CSS/JS: senza, il browser può tenersi in cache una versione vecchia
+    anche per giorni (successo in pratica su un telefono del socio) perché il
+    file non dichiara un `Cache-Control` esplicito e l'url non cambia mai da
+    solo. Cambiando il contenuto cambia l'hash, quindi cambia l'url, quindi il
+    browser lo riscarica sempre dopo un deploy."""
+    try:
+        return hashlib.sha256(percorso.read_bytes()).hexdigest()[:10]
+    except OSError:
+        return "0"
+
+
+ASSET_VERSIONS = {
+    "css": _impronta_file(STATIC_DIR / "css" / "app.css"),
+    "js": _impronta_file(STATIC_DIR / "js" / "app.js"),
+}
 
 
 def formatta_data(valore: Optional[datetime], con_ora: bool = True) -> str:
@@ -97,6 +118,7 @@ templates.env.filters["da_quanto"] = da_quanto
 templates.env.filters["euro"] = euro
 templates.env.filters["testo_per_claude"] = testo_lead_per_claude
 templates.env.filters["messaggio_contatto"] = genera_messaggio_contatto
+templates.env.filters["prompt_followup"] = genera_prompt_followup
 templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
 templates.env.globals["CHANNEL_LABELS"] = CHANNEL_LABELS
 templates.env.globals["OUTCOME_LABELS"] = OUTCOME_LABELS
@@ -104,6 +126,7 @@ templates.env.globals["LeadStatus"] = LeadStatus
 templates.env.globals["CATEGORY_LABELS"] = CATEGORY_LABELS
 templates.env.globals["CATEGORY_GROUP"] = CATEGORY_GROUP
 templates.env.globals["GRUPPI_CATEGORIE"] = GRUPPI
+templates.env.globals["ASSET_VERSIONS"] = ASSET_VERSIONS
 
 
 def render(request: Request, template: str, contesto: dict | None = None, **kwargs):

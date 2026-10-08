@@ -189,6 +189,10 @@ class Lead(Base):
     # Pipeline commerciale
     status: Mapped[str] = mapped_column(String(30), default=LeadStatus.NUOVO.value, index=True)
     valore_stimato: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Cosa intendiamo proporgli (prodotto/servizio, angolo di vendita): serve
+    # per non improvvisare alla chiamata e per dare contesto a Claude quando
+    # genera l'email di follow-up (vedi message_templates.py).
+    proposta: Mapped[str] = mapped_column(Text, default="")
     # Lista chiamate del socio (vedi services/leads.py): una volta inserito in
     # un lotto da chiamare, il lead non viene riproposto in un lotto futuro
     # anche se torna "nuovo" — evita di assegnarlo due volte per errore.

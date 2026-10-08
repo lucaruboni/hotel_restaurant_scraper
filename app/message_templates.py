@@ -9,6 +9,8 @@ generica: se l'offerta cambia, questo è l'unico file da aggiornare.
 
 from scraper.categories import CATEGORY_GROUP
 
+from .models import CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS
+
 TEMPLATE_PER_GRUPPO = {
     "ricettivo": (
         "Ciao, sono {mittente} di BLU — un collettivo che si occupa di siti, "
@@ -48,3 +50,41 @@ def genera_messaggio_contatto(lead, mittente: str = "") -> str:
         nome=lead.nome,
         zona_frase=zona_frase,
     )
+
+
+def genera_prompt_followup(lead, mittente: str = "") -> str:
+    """Prompt pronto da incollare in chat con Claude per farsi scrivere
+    un'email di follow-up: riassume l'ultima interazione, lo stato della
+    trattativa e cosa intendiamo proporre, così Claude non deve indovinare
+    il contesto che solo chi ha fatto la chiamata conosce."""
+    zona_frase = f" a {lead.zona.title()}" if lead.zona else ""
+    righe = [
+        f"Scrivimi una breve email di follow-up per {lead.nome}{zona_frase}, "
+        f"a nome di {mittente or DEFAULT_MITTENTE}.",
+        "",
+        f"Stato della trattativa: {STATUS_LABELS.get(lead.status, lead.status)}",
+    ]
+
+    interazioni = getattr(lead, "interazioni", None) or []
+    if interazioni:
+        ultima = interazioni[0]
+        dettaglio = (
+            f"Ultimo contatto ({ultima.occurred_at.strftime('%d/%m/%Y')}): "
+            f"{CHANNEL_LABELS.get(ultima.canale, ultima.canale)} — "
+            f"{OUTCOME_LABELS.get(ultima.esito, ultima.esito)}"
+        )
+        if ultima.testo:
+            dettaglio += f". Cosa è successo: {ultima.testo}"
+        righe.append(dettaglio)
+    else:
+        righe.append("Non ci sono ancora contatti registrati con questo cliente.")
+
+    if lead.proposta:
+        righe.append(f"Cosa vogliamo proporgli: {lead.proposta}")
+
+    righe += [
+        "",
+        "Tono colloquiale e diretto, massimo 120 parole, con una call to "
+        "action chiara (fissare una chiamata o un incontro).",
+    ]
+    return "\n".join(righe)

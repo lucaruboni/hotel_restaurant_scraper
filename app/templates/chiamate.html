@@ -33,8 +33,12 @@
               </div>
               <div class="subtle">{{ lead.zona }}{% if lead.indirizzo %} · {{ lead.indirizzo | truncate(50) }}{% endif %}</div>
             </div>
-            <a href="/leads/{{ lead.id }}" class="btn btn-sm btn-ghost" title="Scheda completa">Scheda →</a>
+            <a href="/leads/{{ lead.id }}" class="btn btn-sm" title="Apri la scheda completa: pipeline, storico contatti, cosa proporre, email di follow-up">Apri scheda →</a>
           </div>
+
+          {% if lead.proposta %}
+            <div class="chiamata-proposta">💡 Proponi: {{ lead.proposta | truncate(140) }}</div>
+          {% endif %}
 
           <ul class="chiamata-checklist">
             {% for slug, etichetta, fatto in lead.checklist_chiamate %}

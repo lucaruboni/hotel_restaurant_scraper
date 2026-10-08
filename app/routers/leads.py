@@ -263,3 +263,16 @@ def aggiorna_dettagli(
     lead.prossima_azione_at = _parse_data(prossima_azione)
     db.commit()
     return RedirectResponse(f"/leads/{lead_id}?msg=Dati+aggiornati", status_code=303)
+
+
+@router.post("/{lead_id}/proposta")
+def aggiorna_proposta(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    utente: User = Depends(get_current_user),
+    proposta: str = Form(""),
+):
+    lead = _get_lead(db, lead_id)
+    lead.proposta = proposta.strip()
+    db.commit()
+    return RedirectResponse(f"/leads/{lead_id}?msg=Proposta+salvata", status_code=303)

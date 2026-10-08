@@ -21,6 +21,9 @@
   <button type="button" class="btn btn-ghost"
           title="Copia un messaggio di primo contatto pronto da rifinire"
           data-copy-text="{{ lead | messaggio_contatto(utente.nome if utente else '') }}">✉️ Genera messaggio</button>
+  <button type="button" class="btn btn-ghost"
+          title="Copia un prompt per farsi scrivere da Claude un'email di follow-up, con lo storico e cosa proporre"
+          data-copy-text="{{ lead | prompt_followup(utente.nome if utente else '') }}">📨 Prompt follow-up per Claude</button>
   {% if lead.status == LeadStatus.INCONTRO_FISSATO.value and lead.prossima_azione_at %}
     <a href="/leads/{{ lead.id }}/incontro.ics" class="btn btn-ghost" title="Aggiungi l'incontro al calendario">📅 Aggiungi al calendario</a>
   {% endif %}
@@ -55,6 +58,25 @@
           ({{ lead.prossima_azione_at | da_quanto }})</span>
       {% endif %}
     </div>
+  </div>
+</section>
+
+
+<!-- Cosa proporre -->
+<section class="card mb-4">
+  <div class="card-header">
+    <h2>Cosa proponiamo</h2>
+    <span class="subtle">prodotto/servizio, angolo di vendita — utile prima di chiamare</span>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/leads/{{ lead.id }}/proposta">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field" style="margin-bottom: var(--sp-2);">
+        <textarea name="proposta" data-autosize
+          placeholder="Es. sito nuovo + automazione prenotazioni dirette, consulenza social, e-commerce…">{{ lead.proposta }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-sm">Salva</button>
+    </form>
   </div>
 </section>
 

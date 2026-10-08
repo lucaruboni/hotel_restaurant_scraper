@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="HoReCa Leads">
   <title>{% block titolo %}HoReCa Leads{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v={{ ASSET_VERSIONS.css }}">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
@@ -84,6 +84,6 @@
     </div>
   </main>
 </div>
-<script src="/static/js/app.js"></script>
+<script src="/static/js/app.js?v={{ ASSET_VERSIONS.js }}"></script>
 </body>
 </html>
