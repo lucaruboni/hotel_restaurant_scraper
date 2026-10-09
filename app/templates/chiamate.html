@@ -80,15 +80,21 @@
 <section class="card mb-4">
   <div class="card-header"><h2>Tipologia di contatto</h2></div>
   <div class="card-body">
+    <a href="/chiamate" class="chip chip-tutte {% if not categoria_attiva and not gruppo_attivo %}active{% endif %}">
+      Tutte le tipologie
+    </a>
     <div class="filtro-tipologia">
-      <a href="/chiamate" class="btn btn-sm {% if not categoria_attiva and not gruppo_attivo %}btn-primary{% endif %}">Tutte</a>
       {% for blocco in gruppi_categorie %}
-        <a href="/chiamate?gruppo={{ blocco.gruppo }}"
-           class="btn btn-sm {% if gruppo_attivo == blocco.gruppo %}btn-primary{% endif %}">{{ blocco.titolo }}</a>
-        {% for c in blocco.categorie %}
-          <a href="/chiamate?categoria={{ c.slug }}"
-             class="btn btn-sm btn-ghost {% if categoria_attiva == c.slug %}btn-primary{% endif %}">{{ c.label }}</a>
-        {% endfor %}
+        <div class="filtro-gruppo {% if gruppo_attivo == blocco.gruppo %}attivo{% endif %}">
+          <a href="/chiamate?gruppo={{ blocco.gruppo }}"
+             class="filtro-gruppo-titolo {% if gruppo_attivo == blocco.gruppo %}active{% endif %}">{{ blocco.titolo }}</a>
+          <div class="filtro-categorie">
+            {% for c in blocco.categorie %}
+              <a href="/chiamate?categoria={{ c.slug }}"
+                 class="chip {% if categoria_attiva == c.slug %}active{% endif %}">{{ c.label }}</a>
+            {% endfor %}
+          </div>
+        </div>
       {% endfor %}
     </div>
   </div>

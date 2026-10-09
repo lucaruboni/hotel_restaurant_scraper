@@ -474,7 +474,33 @@ tbody tr:hover { background: var(--bg-hover); }
 .missione-icona { font-size: 22px; }
 .missione-punti { font-size: 12px; font-weight: 650; color: var(--klein); }
 
-.filtro-tipologia { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* Filtro tipologia: un blocco per gruppo commerciale, le categorie come
+   chip dentro — la gerarchia visiva deve dire da sola "questo è un gruppo,
+   queste sono le sue categorie", senza doverlo dedurre dal testo. */
+.filtro-tipologia { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
+.filtro-gruppo {
+  border: 1px solid var(--surface-border); border-radius: var(--radius);
+  padding: var(--sp-3); transition: border-color var(--transition), background var(--transition);
+}
+.filtro-gruppo.attivo { border-color: var(--accent-border); background: var(--bg-sunken); }
+.filtro-gruppo-titolo {
+  display: inline-block; font-weight: 650; font-size: 13.5px; color: var(--text);
+  padding: 5px 12px; border-radius: var(--radius-full); margin-bottom: var(--sp-2);
+  background: var(--bg-sunken); border: 1px solid var(--surface-border);
+}
+.filtro-gruppo-titolo:hover { border-color: var(--accent-border); text-decoration: none; }
+.filtro-gruppo-titolo.active { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+.filtro-categorie { display: flex; flex-wrap: wrap; gap: 6px; padding-left: var(--sp-2); }
+
+.chip {
+  display: inline-block; font-size: 12.5px; color: var(--text-muted);
+  padding: 5px 11px; border-radius: var(--radius-full); border: 1px solid var(--surface-border);
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.chip:hover { border-color: var(--accent-border); color: var(--text); text-decoration: none; }
+.chip.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-border); font-weight: 650; }
+.chip-tutte { font-weight: 600; font-size: 13px; padding: 6px 14px; }
+.chip-tutte.active { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
 
 .avatar-scelte { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .avatar-opzione {
