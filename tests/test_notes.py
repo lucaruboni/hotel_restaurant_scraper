@@ -223,7 +223,7 @@ def test_metriche_routine_giornaliera(db):
 
 def test_dashboard_mostra_la_routine_di_oggi(client_auth, db):
     crea_lead(db, nome="Hotel Routine", sito_web="https://routine.it")
-    risposta = client_auth.get("/")
+    risposta = client_auth.get("/metriche")
     assert "Routine di oggi" in risposta.text
     assert "Contatta i nuovi lead" in risposta.text
 
@@ -247,5 +247,5 @@ def test_routine_csv_contiene_i_lead_giusti(client_auth, db):
 
 def test_dashboard_ha_il_pulsante_copia_routine(client_auth, db):
     crea_lead(db, nome="Qualsiasi", sito_web="https://qualsiasi.it")
-    risposta = client_auth.get("/")
+    risposta = client_auth.get("/metriche")
     assert 'data-copy-url="/routine.csv"' in risposta.text

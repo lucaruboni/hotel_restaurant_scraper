@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block titolo %}Il tuo personaggio — HoReCa Leads{% endblock %}
+{% block intestazione %}Il tuo personaggio{% endblock %}
+{% block sottotitolo %}{{ livello.nome }} · {{ livello.punti }} punti{% endblock %}
+
+{% block azioni %}
+  <a href="/chiamate" class="btn btn-ghost">← Lista chiamate</a>
+{% endblock %}
+
+{% block contenuto %}
+<div class="grid grid-main">
+  <div class="stack">
+    <section class="card">
+      <div class="card-header"><h2>Foto del personaggio</h2></div>
+      <div class="card-body">
+        <div class="row" style="align-items:center; gap: var(--sp-4);">
+          {% if utente.avatar_immagine %}
+            <img class="personaggio-avatar-grande personaggio-avatar-foto" src="/chiamate/avatar?v={{ utente.avatar_immagine }}" alt="">
+          {% else %}
+            <span class="personaggio-avatar-grande">{{ utente.avatar_emoji or "🧑‍💼" }}</span>
+          {% endif %}
+          <div class="stack" style="gap: var(--sp-2);">
+            <form method="post" action="/chiamate/profilo/avatar" enctype="multipart/form-data">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="file" name="file" accept="image/jpeg,image/png,image/webp" required data-autosubmit>
+            </form>
+            <span class="hint">Scatta una foto o scegli un'immagine — JPG, PNG o WEBP, max 5 MB.</span>
+            {% if utente.avatar_immagine %}
+              <form method="post" action="/chiamate/profilo/avatar/rimuovi">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-ghost">Rimuovi foto, torna all'emoji</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2>Scegli il personaggio</h2></div>
+      <div class="card-body">
+        <form method="post" action="/chiamate/profilo">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="field">
+            <label>Avatar di riserva (se non carichi una foto)</label>
+            <div class="avatar-scelte">
+              {% for emoji in avatar_scelte %}
+                <label class="avatar-opzione {% if utente.avatar_emoji == emoji %}selezionato{% endif %}">
+                  <input type="radio" name="avatar_emoji" value="{{ emoji }}" {% if utente.avatar_emoji == emoji %}checked{% endif %} required>
+                  <span>{{ emoji }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="field">
+            <label for="motto">Il tuo motto da venditore</label>
+            <input type="text" id="motto" name="motto" maxlength="200" value="{{ utente.motto }}"
+                   placeholder="Es. Non chiudo la chiamata finché non dicono sì... o un no molto convinto.">
+          </div>
+          <button type="submit" class="btn btn-primary">Salva personaggio</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2>Ultimi punti</h2></div>
+      <div class="card-body">
+        {% if ultimi_punti %}
+          <div class="timeline">
+            {% for p in ultimi_punti %}
+              <div class="timeline-item">
+                <div class="timeline-dot">{{ "+" if p.punti >= 0 else "" }}{{ p.punti }}</div>
+                <div class="timeline-body">
+                  <div>{{ p.descrizione }}</div>
+                  <div class="timeline-meta">{{ p.creato_at | da_quanto }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="muted" style="margin:0;">Ancora nessun punto: inizia dalla lista chiamate.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-header"><h2>Livello</h2></div>
+      <div class="card-body">
+        <div class="personaggio-avatar-grande">{{ utente.avatar_emoji or "🧑‍💼" }}</div>
+        <h3 style="text-align:center;">{{ livello.nome }}</h3>
+        <p class="subtle" style="text-align:center;">{{ livello.descrizione }}</p>
+        <div class="livello-barra">
+          <div class="livello-barra-riempita" style="width: {{ livello.percento_progresso }}%;"></div>
+        </div>
+        <p class="subtle" style="text-align:center;">
+          {% if livello.soglia_prossima %}
+            {{ livello.punti }} / {{ livello.soglia_prossima }} punti
+          {% else %}
+            Livello massimo 🏆
+          {% endif %}
+        </p>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

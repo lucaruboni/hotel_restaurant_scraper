@@ -43,7 +43,8 @@ class Settings:
         self.data_dir = Path(os.getenv("DATA_DIR", BASE_DIR / "data"))
         self.upload_dir = self.data_dir / "uploads"
         self.export_dir = self.data_dir / "exports"
-        for directory in (self.data_dir, self.upload_dir, self.export_dir):
+        self.avatar_dir = self.data_dir / "avatars"
+        for directory in (self.data_dir, self.upload_dir, self.export_dir, self.avatar_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
         self.database_url = os.getenv("DATABASE_URL", f"sqlite:///{self.data_dir / 'horeca.db'}")
@@ -59,6 +60,13 @@ class Settings:
 
         # Upload
         self.max_upload_bytes = int(os.getenv("MAX_UPLOAD_BYTES", 15 * 1024 * 1024))  # 15 MB
+        # Avatar del personaggio: solo immagini, limite più basso (foto da telefono).
+        self.max_avatar_bytes = int(os.getenv("MAX_AVATAR_BYTES", 5 * 1024 * 1024))  # 5 MB
+        self.allowed_avatar_types = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+        }
         self.allowed_upload_types = {
             "image/jpeg": ".jpg",
             "image/png": ".png",

@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from scraper.categories import CATEGORY_LABELS
+from scraper.categories import CATEGORY_GROUP, CATEGORY_LABELS
 
 from ..models import CHECKLIST_CHIAMATE_SLUG, Interaction, Lead, LeadStatus, OUTCOME_RISPOSTA, ScrapeJob, utcnow
 
@@ -326,23 +326,42 @@ def leads_routine_di_oggi(db: Session) -> list[Lead]:
 DIMENSIONE_LOTTO_CHIAMATE = 10
 
 
-def candidati_lotto_chiamate(db: Session, limit: int = DIMENSIONE_LOTTO_CHIAMATE) -> list[Lead]:
+def _categorie_del_gruppo(gruppo: str) -> list[str]:
+    return [slug for slug, g in CATEGORY_GROUP.items() if g == gruppo]
+
+
+def _applica_filtro_categoria(stmt, categoria: str = "", gruppo: str = ""):
+    """Filtro condiviso fra selezione del lotto e visualizzazione della
+    lista: `categoria` è una singola categoria (es. "hotel"), `gruppo` un
+    intero profilo commerciale (es. "ricettivo") — vedi scraper/categories.py.
+    Non ha senso passarli entrambi: `categoria` vince se presente."""
+    if categoria:
+        return stmt.where(Lead.categoria == categoria)
+    if gruppo:
+        return stmt.where(Lead.categoria.in_(_categorie_del_gruppo(gruppo)))
+    return stmt
+
+
+def candidati_lotto_chiamate(
+    db: Session, limit: int = DIMENSIONE_LOTTO_CHIAMATE, categoria: str = "", gruppo: str = "",
+) -> list[Lead]:
     """I prossimi lead non ancora proposti per la lista chiamate: nuovi, con
     un numero di telefono, mai inseriti in un lotto precedente. I meglio
     valutati prima, poi i più vecchi (nessuno deve restare indietro per
-    sempre)."""
+    sempre). Si può restringere a una categoria o a un gruppo (vedi la
+    scelta per missione/tipologia nella pagina chiamate)."""
     stmt = (
         select(Lead)
         .where(Lead.status == LeadStatus.NUOVO.value)
         .where(Lead.telefono != "")
         .where(Lead.in_coda_chiamate.is_(False))
-        .order_by(Lead.valutazione.desc().nullslast(), Lead.created_at.asc())
-        .limit(limit)
     )
+    stmt = _applica_filtro_categoria(stmt, categoria, gruppo)
+    stmt = stmt.order_by(Lead.valutazione.desc().nullslast(), Lead.created_at.asc()).limit(limit)
     return list(db.execute(stmt).scalars().all())
 
 
-def conta_candidati_lotto_chiamate(db: Session) -> int:
+def conta_candidati_lotto_chiamate(db: Session, categoria: str = "", gruppo: str = "") -> int:
     stmt = (
         select(func.count())
         .select_from(Lead)
@@ -350,13 +369,17 @@ def conta_candidati_lotto_chiamate(db: Session) -> int:
         .where(Lead.telefono != "")
         .where(Lead.in_coda_chiamate.is_(False))
     )
+    stmt = _applica_filtro_categoria(stmt, categoria, gruppo)
     return db.execute(stmt).scalar_one()
 
 
-def aggiungi_lotto_chiamate(db: Session, limit: int = DIMENSIONE_LOTTO_CHIAMATE) -> list[Lead]:
-    """Sposta i prossimi `limit` candidati nella lista chiamate attiva."""
+def aggiungi_lotto_chiamate(
+    db: Session, limit: int = DIMENSIONE_LOTTO_CHIAMATE, categoria: str = "", gruppo: str = "",
+) -> list[Lead]:
+    """Sposta i prossimi `limit` candidati (di una categoria/gruppo, se
+    indicati) nella lista chiamate attiva."""
     adesso = utcnow()
-    lotto = candidati_lotto_chiamate(db, limit=limit)
+    lotto = candidati_lotto_chiamate(db, limit=limit, categoria=categoria, gruppo=gruppo)
     for lead in lotto:
         lead.in_coda_chiamate = True
         lead.coda_chiamate_at = adesso
@@ -364,7 +387,7 @@ def aggiungi_lotto_chiamate(db: Session, limit: int = DIMENSIONE_LOTTO_CHIAMATE)
     return lotto
 
 
-def lista_chiamate_attiva(db: Session) -> list[Lead]:
+def lista_chiamate_attiva(db: Session, categoria: str = "", gruppo: str = "") -> list[Lead]:
     """I lead attualmente nella lista chiamate e non ancora contattati: una
     volta registrata una qualunque interazione lo stato esce da "nuovo" (vedi
     `registra_interazione`) e il lead esce da qui senza bisogno di rimuoverlo
@@ -373,8 +396,9 @@ def lista_chiamate_attiva(db: Session) -> list[Lead]:
         select(Lead)
         .where(Lead.in_coda_chiamate.is_(True))
         .where(Lead.status == LeadStatus.NUOVO.value)
-        .order_by(Lead.coda_chiamate_at.asc())
     )
+    stmt = _applica_filtro_categoria(stmt, categoria, gruppo)
+    stmt = stmt.order_by(Lead.coda_chiamate_at.asc())
     return list(db.execute(stmt).scalars().all())
 
 

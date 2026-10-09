@@ -35,10 +35,10 @@
     }, 3000);
   }
 
-  // --- Checkbox che si salvano da sole (lista chiamate) -------------------
+  // --- Campi che inviano il form da soli (checkbox checklist, upload foto) -
   document.addEventListener("change", function (evento) {
     var campo = evento.target;
-    if (campo.matches("input[type=checkbox][data-autosubmit]")) {
+    if (campo.matches("[data-autosubmit]")) {
       campo.closest("form").submit();
     }
   });

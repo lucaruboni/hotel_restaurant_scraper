@@ -156,6 +156,16 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
+    # Personaggio della lista chiamate gamificata (vedi services/gamification.py).
+    # `punti_totali` è una cache aggiornata ad ogni `PuntoEvento`: evita di
+    # risommare tutto lo storico a ogni caricamento della pagina.
+    avatar_emoji: Mapped[str] = mapped_column(String(8), default="🧑‍💼")
+    # Nome su disco (UUID) di una foto caricata al posto dell'emoji — vuoto
+    # se non caricata. Mai il nome file originale: vedi regola upload.
+    avatar_immagine: Mapped[str] = mapped_column(String(120), default="")
+    motto: Mapped[str] = mapped_column(String(200), default="")
+    punti_totali: Mapped[int] = mapped_column(Integer, default=0)
+
 
 class Lead(Base):
     """Un potenziale cliente (hotel o ristorante)."""
@@ -377,3 +387,35 @@ class ScrapeJob(Base):
         if self.started_at and self.finished_at:
             return (self.finished_at - self.started_at).total_seconds()
         return None
+
+
+class PuntoEvento(Base):
+    """Un punteggio assegnato al venditore (vedi services/gamification.py):
+    una riga per ogni voce di checklist spuntata, chiamata registrata o
+    missione completata. Serve sia a sommare il totale sia a mostrare
+    un piccolo storico ("perché ho questi punti")."""
+
+    __tablename__ = "punti_eventi"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    lead_id: Mapped[Optional[int]] = mapped_column(ForeignKey("leads.id", ondelete="SET NULL"), nullable=True)
+
+    azione: Mapped[str] = mapped_column(String(40))
+    descrizione: Mapped[str] = mapped_column(String(200), default="")
+    punti: Mapped[int] = mapped_column(Integer)
+    creato_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
+class MissioneCompletata(Base):
+    """Traccia quali missioni (vedi MISSIONI in services/gamification.py) un
+    venditore ha già completato, per non assegnare lo stesso bonus due
+    volte: le missioni restano acquisite, non si resettano da sole."""
+
+    __tablename__ = "missioni_completate"
+    __table_args__ = (UniqueConstraint("user_id", "slug", name="uq_missione_per_utente"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    slug: Mapped[str] = mapped_column(String(60))
+    completata_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

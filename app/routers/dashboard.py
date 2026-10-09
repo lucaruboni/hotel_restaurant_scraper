@@ -17,7 +17,7 @@ from ..templating import render
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("/metriche")
 def dashboard(
     request: Request,
     db: Session = Depends(get_db),

@@ -4,18 +4,96 @@
 {% block sottotitolo %}
   {{ lista | length }} da chiamare adesso
   {% if disponibili %}· altri {{ disponibili }} pronti in archivio{% endif %}
+  {% if categoria_attiva %}· filtro: {{ CATEGORY_LABELS.get(categoria_attiva, categoria_attiva) }}{% endif %}
+  {% if gruppo_attivo %}· filtro: {{ GRUPPI_CATEGORIE.get(gruppo_attivo, gruppo_attivo) }}{% endif %}
 {% endblock %}
 
 {% block azioni %}
   <form method="post" action="/chiamate/aggiungi">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="categoria" value="{{ categoria_attiva }}">
+    <input type="hidden" name="gruppo" value="{{ gruppo_attivo }}">
     <button type="submit" class="btn btn-primary" {% if not disponibili %}disabled{% endif %}>
-      Aggiungi {{ dimensione_lotto }} nuovi contatti
+      Aggiungi {{ dimensione_lotto }} contatti
     </button>
   </form>
 {% endblock %}
 
 {% block contenuto %}
+
+<!-- Personaggio -->
+<a href="/chiamate/profilo" class="card personaggio-strip">
+  {% if utente.avatar_immagine %}
+    <img class="personaggio-avatar personaggio-avatar-foto" src="/chiamate/avatar?v={{ utente.avatar_immagine }}" alt="">
+  {% else %}
+    <span class="personaggio-avatar">{{ utente.avatar_emoji or "🧑‍💼" }}</span>
+  {% endif %}
+  <div class="personaggio-info">
+    <div class="personaggio-riga1">
+      <strong>{{ utente.nome or utente.username }}</strong>
+      <span class="badge badge-livello">{{ livello.nome }}</span>
+      <span class="personaggio-punti">{{ livello.punti }} pt</span>
+    </div>
+    {% if utente.motto %}<div class="subtle">«{{ utente.motto }}»</div>{% endif %}
+    <div class="livello-barra">
+      <div class="livello-barra-riempita" style="width: {{ livello.percento_progresso }}%;"></div>
+    </div>
+    <div class="subtle">
+      {% if livello.soglia_prossima %}
+        {{ livello.soglia_prossima - livello.punti }} punti al prossimo livello
+      {% else %}
+        Livello massimo raggiunto 🏆
+      {% endif %}
+    </div>
+  </div>
+</a>
+
+<!-- Missioni -->
+<section class="card mb-4">
+  <div class="card-header">
+    <h2>Missioni</h2>
+    <span class="subtle">clicca una missione per andare ai contatti giusti</span>
+  </div>
+  <div class="card-body">
+    <div class="missioni-grid">
+      {% for m in missioni %}
+        <a href="{{ m.missione.href or '/chiamate' }}" class="missione-card {% if m.completata %}completata{% endif %}">
+          <div class="missione-head">
+            <span class="missione-icona">{{ m.missione.icona }}</span>
+            <span class="missione-punti">+{{ m.missione.punti }} pt</span>
+          </div>
+          <h3>{{ m.missione.titolo }}</h3>
+          <p class="subtle">{{ m.missione.descrizione }}</p>
+          <div class="livello-barra">
+            <div class="livello-barra-riempita {% if m.completata %}completa{% endif %}" style="width: {{ m.percento }}%;"></div>
+          </div>
+          <div class="subtle">
+            {% if m.completata %}✓ completata{% else %}{{ m.completati }}/{{ m.missione.target }}{% endif %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- Filtro per tipologia -->
+<section class="card mb-4">
+  <div class="card-header"><h2>Tipologia di contatto</h2></div>
+  <div class="card-body">
+    <div class="filtro-tipologia">
+      <a href="/chiamate" class="btn btn-sm {% if not categoria_attiva and not gruppo_attivo %}btn-primary{% endif %}">Tutte</a>
+      {% for blocco in gruppi_categorie %}
+        <a href="/chiamate?gruppo={{ blocco.gruppo }}"
+           class="btn btn-sm {% if gruppo_attivo == blocco.gruppo %}btn-primary{% endif %}">{{ blocco.titolo }}</a>
+        {% for c in blocco.categorie %}
+          <a href="/chiamate?categoria={{ c.slug }}"
+             class="btn btn-sm btn-ghost {% if categoria_attiva == c.slug %}btn-primary{% endif %}">{{ c.label }}</a>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
 {% if lista %}
   <div class="grid grid-2 chiamate-grid">
     {% for lead in lista %}
@@ -46,9 +124,11 @@
                 <form method="post" action="/chiamate/{{ lead.id }}/checklist">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                   <input type="hidden" name="voce" value="{{ slug }}">
+                  <input type="hidden" name="categoria" value="{{ categoria_attiva }}">
+                  <input type="hidden" name="gruppo" value="{{ gruppo_attivo }}">
                   <label class="checkbox chiamata-check-item {% if fatto %}fatto{% endif %}">
                     <input type="checkbox" data-autosubmit {% if fatto %}checked{% endif %}>
-                    {{ etichetta }}
+                    {{ etichetta }} <span class="subtle">+{{ PUNTI_CHECKLIST_VOCE }} pt</span>
                   </label>
                 </form>
               </li>
@@ -71,6 +151,8 @@
 
           <form method="post" action="/chiamate/{{ lead.id }}/esito" class="chiamata-esiti">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="categoria" value="{{ categoria_attiva }}">
+            <input type="hidden" name="gruppo" value="{{ gruppo_attivo }}">
             <button type="submit" name="esito" value="risposta_positiva" class="btn btn-sm">✅ Interessato</button>
             <button type="submit" name="esito" value="da_ricontattare" class="btn btn-sm">↻ Richiamare</button>
             <button type="submit" name="esito" value="nessuna_risposta" class="btn btn-sm btn-ghost">— Nessuna risposta</button>
@@ -88,10 +170,12 @@
       <p class="muted">Ci sono {{ disponibili }} potenziali clienti pronti: aggiungine {{ dimensione_lotto }} per iniziare.</p>
       <form method="post" action="/chiamate/aggiungi">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="categoria" value="{{ categoria_attiva }}">
+        <input type="hidden" name="gruppo" value="{{ gruppo_attivo }}">
         <button type="submit" class="btn btn-primary mt-4">Aggiungi {{ dimensione_lotto }} nuovi contatti</button>
       </form>
     {% else %}
-      <p class="muted">Non ci sono nuovi contatti con telefono pronti per la chiamata. Avvia una nuova ricerca per trovarne altri.</p>
+      <p class="muted">Non ci sono nuovi contatti con telefono pronti per la chiamata{% if categoria_attiva or gruppo_attivo %} in questa tipologia{% endif %}. Avvia una nuova ricerca per trovarne altri.</p>
       <a href="/scrape" class="btn btn-primary mt-4">Cerca nuove strutture</a>
     {% endif %}
   </div>

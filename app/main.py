@@ -124,6 +124,12 @@ def create_app() -> FastAPI:
     # CSRF fail-closed su ogni scrittura, prima di ogni altro middleware.
     app.add_middleware(CSRFMiddleware, esenti=CSRF_EXEMPT)
 
+    @app.get("/")
+    def home():
+        """La lista chiamate è la pagina principale: è da lì che si parte
+        ogni mattina, non dalle metriche (vedi /metriche)."""
+        return RedirectResponse("/chiamate", status_code=303)
+
     app.include_router(auth.router, tags=["auth"])
     app.include_router(dashboard.router, tags=["dashboard"])
     app.include_router(leads.router, tags=["leads"])

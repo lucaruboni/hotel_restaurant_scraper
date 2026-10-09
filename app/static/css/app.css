@@ -437,6 +437,53 @@ tbody tr:hover { background: var(--bg-hover); }
 .chiamata-check-item.fatto { color: var(--text-muted); text-decoration: line-through; }
 .chiamata-proposta { font-size: 13px; background: var(--warning-soft); color: var(--warning); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); margin-bottom: var(--sp-3); }
 
+/* --- Gamification: personaggio, livello, missioni -------------------------- */
+
+.personaggio-strip {
+  display: flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-4); margin-bottom: var(--sp-4);
+  color: var(--text); text-decoration: none;
+}
+.personaggio-strip:hover { border-color: var(--accent-border); text-decoration: none; }
+.personaggio-avatar { font-size: 36px; line-height: 1; flex-shrink: 0; }
+.personaggio-avatar-grande { font-size: 56px; line-height: 1; text-align: center; margin-bottom: var(--sp-2); }
+.personaggio-avatar-foto {
+  width: 1.2em; height: 1.2em; object-fit: cover; border-radius: var(--radius-full);
+  border: 1px solid var(--surface-border); font-size: inherit;
+}
+.personaggio-avatar.personaggio-avatar-foto { width: 46px; height: 46px; }
+.personaggio-avatar-grande.personaggio-avatar-foto { width: 96px; height: 96px; margin: 0 auto var(--sp-2); display: block; }
+.personaggio-info { flex: 1; min-width: 0; }
+.personaggio-riga1 { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: 2px; }
+.personaggio-punti { color: var(--klein); font-weight: 650; font-size: 13px; }
+.badge-livello { background: var(--klein-soft); color: var(--klein); }
+
+.livello-barra { background: var(--bg-sunken); border-radius: var(--radius-full); height: 8px; overflow: hidden; margin: var(--sp-2) 0 4px; }
+.livello-barra-riempita { height: 100%; background: var(--accent); border-radius: var(--radius-full); transition: width var(--transition); }
+.livello-barra-riempita.completa { background: var(--success); }
+
+.missioni-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--sp-3); }
+.missione-card {
+  display: block; border: 1px solid var(--surface-border); border-radius: var(--radius);
+  padding: var(--sp-3); color: var(--text); text-decoration: none; transition: border-color var(--transition);
+}
+.missione-card:hover { border-color: var(--accent-border); text-decoration: none; }
+.missione-card.completata { background: var(--success-soft); border-color: transparent; }
+.missione-card h3 { font-size: 14px; margin: 2px 0 4px; }
+.missione-head { display: flex; justify-content: space-between; align-items: center; }
+.missione-icona { font-size: 22px; }
+.missione-punti { font-size: 12px; font-weight: 650; color: var(--klein); }
+
+.filtro-tipologia { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.avatar-scelte { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.avatar-opzione {
+  display: grid; place-items: center; width: 52px; height: 52px; font-size: 24px;
+  border: 1px solid var(--surface-border); border-radius: var(--radius); cursor: pointer;
+}
+.avatar-opzione input { position: absolute; opacity: 0; width: 0; height: 0; }
+.avatar-opzione.selezionato { border-color: var(--accent); background: var(--accent-soft); }
+
 @media (min-width: 740px) {
   .chiamate-grid { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
 }

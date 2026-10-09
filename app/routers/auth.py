@@ -33,7 +33,7 @@ def _client_ip(request: Request) -> str:
 def pagina_login(request: Request):
     if request.cookies.get(settings.session_cookie):
         # Sessione già presente: la validità viene comunque verificata dalle pagine protette.
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/chiamate", status_code=303)
     return render(request, "login.html", {"errore": ""})
 
 
@@ -61,7 +61,7 @@ def esegui_login(
     utente.last_login_at = utcnow()
     db.commit()
 
-    risposta = RedirectResponse("/", status_code=303)
+    risposta = RedirectResponse("/chiamate", status_code=303)
     risposta.set_cookie(
         settings.session_cookie,
         create_session_token(utente.id),

@@ -12,6 +12,7 @@ from scraper.categories import CATEGORY_GROUP, CATEGORY_LABELS, GRUPPI
 
 from .message_templates import genera_messaggio_contatto, genera_prompt_followup
 from .models import CHANNEL_LABELS, OUTCOME_LABELS, STATUS_LABELS, LeadStatus
+from .services.gamification import PUNTI_CHECKLIST_VOCE
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -127,6 +128,7 @@ templates.env.globals["CATEGORY_LABELS"] = CATEGORY_LABELS
 templates.env.globals["CATEGORY_GROUP"] = CATEGORY_GROUP
 templates.env.globals["GRUPPI_CATEGORIE"] = GRUPPI
 templates.env.globals["ASSET_VERSIONS"] = ASSET_VERSIONS
+templates.env.globals["PUNTI_CHECKLIST_VOCE"] = PUNTI_CHECKLIST_VOCE
 
 
 def render(request: Request, template: str, contesto: dict | None = None, **kwargs):

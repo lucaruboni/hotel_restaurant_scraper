@@ -10,14 +10,16 @@ def test_pagina_login_raggiungibile(client):
     assert "Accedi" in risposta.text
 
 
-def test_dashboard_richiede_login(client):
+def test_root_rimanda_alla_lista_chiamate(client):
+    """"/" è solo uno smistamento verso la pagina principale (lista
+    chiamate): la protezione da login vera e propria sta su /chiamate."""
     risposta = client.get("/", follow_redirects=False)
     assert risposta.status_code == 303
-    assert "/login" in risposta.headers["location"]
+    assert risposta.headers["location"] == "/chiamate"
 
 
 def test_tutte_le_pagine_protette_richiedono_login(client):
-    for percorso in ("/", "/leads", "/scrape", "/leads/1", "/leads/1/scheda", "/leads/export.csv"):
+    for percorso in ("/chiamate", "/leads", "/scrape", "/leads/1", "/leads/1/scheda", "/leads/export.csv"):
         risposta = client.get(percorso, follow_redirects=False)
         assert risposta.status_code == 303, f"{percorso} non protetto"
         assert "/login" in risposta.headers["location"]
@@ -61,8 +63,14 @@ def test_cookie_sessione_httponly(client, utente):
     assert "SameSite=lax" in set_cookie.lower() or "samesite=lax" in set_cookie.lower()
 
 
-def test_dashboard_accessibile_dopo_login(client_auth):
-    risposta = client_auth.get("/")
+def test_lista_chiamate_accessibile_dopo_login(client_auth):
+    risposta = client_auth.get("/chiamate")
+    assert risposta.status_code == 200
+    assert "Lista chiamate" in risposta.text
+
+
+def test_metriche_accessibile_dopo_login(client_auth):
+    risposta = client_auth.get("/metriche")
     assert risposta.status_code == 200
     assert "Dashboard" in risposta.text
 
@@ -70,8 +78,9 @@ def test_dashboard_accessibile_dopo_login(client_auth):
 def test_logout_cancella_sessione(client_auth, csrf):
     risposta = client_auth.post("/logout", data={"csrf_token": csrf}, follow_redirects=False)
     assert risposta.status_code == 303
-    dopo = client_auth.get("/", follow_redirects=False)
+    dopo = client_auth.get("/chiamate", follow_redirects=False)
     assert dopo.status_code == 303
+    assert "/login" in dopo.headers["location"]
 
 
 def test_post_senza_csrf_bloccato(client_auth, db, utente):
